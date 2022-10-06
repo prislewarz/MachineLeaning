@@ -1,0 +1,66 @@
+from tensorflow import keras
+
+base_model = keras.applications.VGG16(
+    weights=FIXME,
+    input_shape=(224, 224, 3),
+    include_top=FIXME)
+    
+# Freeze base model
+base_model.trainable = FIXME
+
+# Create inputs with correct shape
+inputs = FIXME
+
+x = base_model(inputs, training=False)
+
+# Add pooling layer or flatten layer
+x = FIXME
+
+# Add final dense layer
+outputs = keras.layers.Dense(FIXME, activation = 'softmax')(x)
+
+# Combine inputs and outputs to create model
+model = keras.Model(FIXME)
+
+model.summary()
+
+model.compile(loss = FIXME , metrics = FIXME)
+
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+datagen = ImageDataGenerator(FIXME)
+
+# load and iterate training dataset
+train_it = datagen.flow_from_directory(FIXME, 
+                                       target_size=FIXME, 
+                                       color_mode='rgb', 
+                                       class_mode="categorical")
+# load and iterate validation dataset
+valid_it = datagen.flow_from_directory(FIXME, 
+                                      target_size=FIXME, 
+                                      color_mode='rgb', 
+                                      class_mode="categorical")
+                                      
+model.fit(FIXME,
+          validation_data=FIXME,
+          steps_per_epoch=train_it.samples/train_it.batch_size,
+          validation_steps=valid_it.samples/valid_it.batch_size,
+          epochs=FIXME)
+          
+# Unfreeze the base model
+base_model.trainable = FIXME
+
+# Compile the model with a low learning rate
+model.compile(optimizer=keras.optimizers.RMSprop(learning_rate = FIXME),
+              loss = FIXME , metrics = FIXME)
+              
+model.fit(FIXME,
+          validation_data=FIXME,
+          steps_per_epoch=train_it.samples/train_it.batch_size,
+          validation_steps=valid_it.samples/valid_it.batch_size,
+          epochs=FIXME)
+          
+model.evaluate(valid_it, steps=valid_it.samples/valid_it.batch_size)
+
+from run_assessment import run_assessment
+run_assessment(model, valid_it)
