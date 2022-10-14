@@ -1,0 +1,24 @@
+def knn_classifier(example, dataset, K=5):
+  #initialize
+  neighbors=[None for _ in range(K)]
+  distances=[float('inf') for _ in range(K)]
+  
+  #find K-nearest neighbors
+  for train_example, train_label in dataset:
+    distance=compute_distance(example, train_example)
+    for k in range(K):
+      if d < distances[k]:
+        distances.insert(k,distance)
+        distances.pop(-1)
+        neighbors.insert(k,train_label)
+        neighbors.pop(-1)
+        break
+        
+  #predict labels
+  counts=[0 for _ in range(K)]
+  for k in range(K):
+    counts[neighbors[k]] += 1
+  max_count = max(counts)
+  label=counts.index(max_count)
+  return label
+  
