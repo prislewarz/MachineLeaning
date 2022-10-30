@@ -1,0 +1,8 @@
+import gym
+env=gym.make()
+env.render()
+print(env.observation_space)
+print(env.action_space)
+print(env.P[][])
+state=env.reset()
+env.step()
