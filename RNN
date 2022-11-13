@@ -1,0 +1,73 @@
+from IPython.display import Image
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+try:
+  %tensorflow_version 2.x
+except Exception:
+  pass
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Dense, SimpleRNN, TimeDistributed
+from tensorflow.keras.models import Model, Sequential
+import numpy as np
+
+# input shape
+inputs = Input(shape=(1,2))
+# output shape, return state, use tanh as activation function
+output, state = SimpleRNN(3, return_state=True, activation='tanh')(inputs)
+model = Model(inputs=inputs, outputs=[output, state])
+
+# test input
+data = np.array([[ [1,2] ]])
+# print output, state
+output, state = model.predict(data)
+print("output: ",output)
+print("state: ",state)
+
+# weights for input
+model.layers[1].weights[0]
+
+# weights for state
+model.layers[1].weights[1]
+
+# bias
+model.layers[1].weights[2]
+
+#sequence tagging example
+
+John = [1,0,0]
+loves = [0,1,0]
+Jane = [0,0,1]
+
+X = np.array([
+    [ John, loves, Jane ],
+    [ Jane, loves, John ]
+]).astype(np.float32)
+
+S = [0] # subject
+V = [1] # verb
+O = [2] # object
+y = np.array([[S, V, O], [S, V, O]]).astype(np.float32)
+
+# input shape
+inputs = Input(shape=(3, 3))
+# output shape, return state, return sequence
+output, state = SimpleRNN(3, return_state=True, return_sequences=True)(inputs)
+model = Model(inputs=inputs, outputs=[output, state])
+
+model = Sequential()
+model.add(SimpleRNN(3, input_shape=(3, 3), return_sequences=True))
+model.add(TimeDistributed(Dense(3, activation="softmax")))
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam')
+print(model.summary())
+# train, takes 30sec, if you want to monitor progreses, change verbose=1
+model.fit(X, y, epochs=2000, verbose=0)
+
+result = model.predict(X, verbose=0)
+# check the result
+
+# 0 : Subject
+# 1 : Verb
+# 2 : Object
+np.argmax(result, axis=1)
+
