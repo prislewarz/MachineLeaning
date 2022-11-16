@@ -1,0 +1,65 @@
+#값을 직접 주지 않고 placeholder를 이용할 경우
+
+import tensorflow as ft
+
+W = tf.variable(tf.random_normal([3, 1]), name='weight')
+b = tf.variable(tf.random_normal([1]), name='bias')
+X = tf.placeholder(tf.float32, shape=[None, 3])
+Y = tf.placeholder(tf.float32, shape=[None, 1])
+
+#이하 나머지 위와 동일
+
+for step in range(2001):
+    cost_val, W_val, b_val, _ = |
+    sess.run([cost, W, b, train],
+             feed_dict = {X:[1,2,3], Y:[1,2,3]})
+    if step % 20 == 0:
+        print(step,cost_val, W_val, b_val)
+
+#Testing our model
+print(sess.run(hypothesis, feed_dict={X:[1,2,3]}))
+
+shape이 none이라는 것은 1개를 주든 10개 100개를 주든 모두 가능하다는 이야기. 단 숫자가 써있으면 그건 그 숫자의 개수'만' 가능하다는 이야기.
+
+#경사하강과 손실 최소화 알고리즘(b = 0)
+W = tf.variable(tf.random_normal([1]), name='weight')
+X = tf.placeholder(tf.float32)
+Y = tf.placeholder(tf.float32)
+
+#Our hyppthesis for linear model X*W
+hypothesis = X*W
+
+#multi-variable linear regression
+hypothesis = tf.matmull(X,W)+b
+learning_rate = 1e-5
+
+#cost/loss function
+cost - tf.reduce_sum(tf.square(hypothesis - Y))
+
+#minimize: Gradient Descent using derivative: W-= Learning_rate*derivative
+learning_rate = 0.1
+gradient = tf.reduce_mean((W*X-Y)*X)
+descent = W- learning_rate*gradient
+update = W.assign(descent)
+
+sess = tf.Session()
+sess.run(tf.global_variables_initialiver())
+for step in range(21):
+  sess.run(update, feed_dict={X:x_data, Y:y_data})
+  print(step, sess.run(cost, feed_dict={X:x_data, Y:y_data}, sess.run(W))
+
+#위에서 바로 최소화 하지 않고 텐서플로우가 경사를 계산하게 하려면
+
+#Get gradients
+gvs = optimizer.compute gradients(cost)
+#Apply gradients
+apply_gradients = optimizer.apply_gradients(gvs
+                                            )
+#텐서플로우로 파일에서 데이터 읽어오기
+import tensorflow as tf
+import numpy as np
+tf.set_random_seed(777) #for reproducibility
+
+xy=np.loadtxt('data-01-test-score.csv', delimiter=',', dtype=np.float32)
+
+경사 계산 수식을 이용한 값이나, 컴퓨터가 계산한 값이나 결과값은 같음! 단 정밀도때문에 약간의 오차는 존재.
