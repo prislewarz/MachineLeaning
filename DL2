@@ -1,0 +1,414 @@
+import numpy as np
+
+my_list = [[10,20,30],[40,50,60]]
+print(my_list[1][1])
+
+import numpy as np
+my_arr=np.array([[10,20,30],[40,50,60],[70,80,90]])
+print(my_arr)
+type(my_arr)
+my_arr[0][2]
+np.sum(my_arr)
+
+import matplotlib.pyplot as plt
+plt.plot([1,2,3,4,5],[1,4,9,16,25])
+plt.show()
+
+plt.scatter([1,2,3,4,5],[1,4,9,16,25])
+plt.show()
+
+x=np.random.randn(1000) #표준정규분포를 따르는 난수 1000개 생성
+y=np.random.randn(1000) #""
+plt.scatter(x,y)
+plt.show()
+
+선형회귀(머신러닝)는x,y가 주어질때 기울기와 절편값을 요구함. 1.5 X x값 + 0.1= y값 이라고 할 때, 
+1.5는 가중치, x값은 입력값, 0.1은 절편, y값은 타깃. 선형회귀 문제를 해결할 때 좌표의 직선을 모델이라고 부르는데, 산포해있는 점들이 일직선에 있을수록 최적의 모델임.
+행의 개수= 샘플의 개수, 열의 개수= 특성의 개수
+
+import matplotlib.pyplot as plt
+plt.scatter(diabetes.data[:.2], diabetes.target) #당뇨병 환자 데이터(다운로드해야 결과출력됨)
+plt.xlabel('x')
+plt.ylabel('y')
+plt.show()
+
+from sklearn.datasets import load_diabetes
+diabetes=load_diabetes()
+
+print(diabetes.data.shape, diabetes.target.shape)
+
+y=ax+b에서 y는 타깃값, x는 입력값, a는 기울기, b가 절편이라면, y^(와이햇)-wx+b에서 y^은 예측값, w는 가중치, x는 계수, b는 절편이다. 비슷한 형태지만 완전 다르다.
+
+훈련 데이터에 잘 맞는 w와 b를 찾는법
+
+무작위로 w와 b를 정한다(무작위로 모델 만들기)
+x에서 샘플 하나를 선택해 y^을 계산한다(무작위로 모델 예측하기)
+y^과 선택한 샘플의 진짜 y를 비교한다(예측값과 진짜 정답 비교하기)
+y^이 y와 더 가까워지도록 w와 b를 조정한다(모델 조정하기)
+모든 샘플을 처리할때까지 2~4의 과정을 반복한다.
+
+#실제로 훈련 데이터에 맞는 w와 b 찾아보기
+
+w=1.0, 
+b-1,0 #임의의 값으로 시작
+
+y_hat = x[0]*w+b
+print(y_hat) #첫번째 샘플에 대한 예측 만들기
+
+print(y[0]) #첫번째 샘플의 실제 타깃. 목표는 y_hat과 y의 값의 차이를 좁히는 것
+
+#그렇다면 어떻게 차이를 좁힐까? 우선 w값을 조절해 예측값을 바꿔본다
+
+#w를 0.1만큼 증가시켜본다(나중에는 고정값 말고 변화율 자체를 더해본다)
+w_inc = w+0.1
+y_hat_inc = x[0]*w_inc + b
+print(y_hat_inc)
+
+#바꾼 값이 이전값과 비교해 얼만큼 증가했는지 변화율을 측정한다.
+w_rate = (y_hat_inc- y_hat)/(w_inc - w)
+print(w_rate)
+
+diabetes는 bunch클래스라고 함. 그리고 프린트에 출력된 데이터(입력)shape와 타깃shape는 넘파이 배열(튜플의 형태)로 묶여 출력
+
+y>y^일 경우에는 w값을 증가시켜주는게 적절한데, 만약 y^이 더 클 경우에는 값을 줄이는게 맞을까?
+
+변화율 부호에 따라 가중치를 업데이트: 
+변화율이 양수일때 w가 증가하면 y^도 증가 변화율이 음수일때 w가 감소하면 y^는 증가 변화율을 더하면 예측값이 증가. 
+w_new = w + w_rate(고정된 값이 아니라 그냥 변화율 자체를 더해줌)
+
+변화율로 절편 업데이트: 아래 결과에 따라 b값은 1이 됨을 알 수 있다
+
+b_inc = b + 0.1
+y_hat_inc = x[0]*w + b_inc
+print(y_hat_inc)
+
+b_rate = (y_hat_inc - y_hat)/(b_inc - b)
+print(b_rate) # = 1. 0
+
+b_new = b+1 
+print(b_new) # = 2.0
+
+위 방식의 문제점: w_new나 b_new나 모두 y>y^일 경우를 가정한 방식임.
+따라서 y^이 y보다 커지면 y^을 감소시킬 수 없음 
+또한, y^이 y에 한참 미치지 못하는 값인 경우에도 w,b를 더 큰 폭으로(변화율만큼 수정을 하더라도 특별히 정해진 기준이 없음) 수정하기 힘듬.
+
+solution : y^과 y의 차이가 크면 w와 b를 그에 비례해서 바꾸고, y^이 y보다 크면 w와 b를 감소시켜야 함.
+(y^>y이면 오차가 음수가 되므로 자동으로 w,b값도 줄어들고, 반대의 경우는 오차가 양수이므로 w,b값도 커지게 됨.
+
+# 오차와 변화율을 곱하여 가중치를 업데이트
+err = y[0] - y_hat # 에러 = y-y^ = 오차
+w_new = w + w_rate * err
+b_new = b + 1 * err
+print(w_new, b_new) # 오차를 곱하면 그 전보다 가중치와 절편이 큰 폭으로 바뀜
+
+from IPython.utils.path import errno
+# 두번째 샘플 계산 코드
+y_hat= x[1]*w_new+b_new
+err = y[1]-y_hat
+w_rate=x[1]
+w_new=w_new+w_rate*err
+b_new=b_new+1*err
+print(w_new, b_new) 
+#이런식으로 샘플 계산하는데 샘플이 너무 많아지면 반복문을 사용해서 간편하게 전체 샘플을 빈복해 가중치와 절편을 조정
+
+for x_i, y_i in zip(x,y):
+  y_hat = x_i*w+b
+  err = y_i - y_hat
+  w_rate= x_i
+  w=w+w_rate*err
+  b=b+1*err
+print(w,b)
+
+#그래프로 나타내보면
+plt.scatter(x,y)
+pt1 = (-0.1, -0.1 * w + b)
+pt2 = (0.15, 0.15 * w + b)
+plt.plot([pt1[0],pt2[0]], [pt1[1], pt2[1]])
+plt.xlabel('x')
+plt.ylabel('y')
+plt.show()
+
+for i in range(1,100)으로 돌려보면 w= 913. 6, b= 123.4가 나온다. 따라서 y^=913.6x+123.4라는 경사하강법을 통한 선형 회귀 모델을 찾을 수 있다
+이렇게 구해진 회귀모델에 x값에 해당하는 데이터만 넣어주면 손쉽게 y^(예측값) 찾을수있음.
+
+손실함수와 경사하강법의 관계
+
+손실함수는 예측값과 실제 타깃값의 차이를 측정
+손실함수의 차이를 줄이는 방법으로 경사하강법 사용
+대표적인 회귀, 분류 등에는 널리 사용하는 손실함수가 있음
+복잡한 다른 문제에서는 자신만의 손실함수를 정의해 사용
+
+from os import XATTR_SIZE_MAX
+from numpy.random.mtrand import exponential
+from IPython.utils.path import errno
+
+class Neuron
+  def __init__(self):
+    self.w=1.0 #가중치 초기화 작업
+    self.b=1.0 #절편(편향) 초기화 작업
+
+  def forpass(self, x): #정방향(직선방정식) 계산
+    y_hat = x*self.w+self.b
+    return y_hat
+    
+  def backprop(self, x, err): #역방향 계산
+    w_grad = x*err #가중치에 대한 그레이디언트(기울기) 계산
+    b_grad = 1*err #절편에 대한 그레이디언트 계산
+    return w_grad, b_grad
+
+#훈련을 위한 fit()메소드 구현
+def fit(self, x, y, epochs=100): #x는 입력값, y는 타깃값
+  for i in range(epochs): #에포크만큼 반복
+    for x_i, y_i in zip(x,y): #모든 샘플에 대해 반복
+      y_hat = self.forpass(x_i) #정방향 계산
+      err = -(y_i - y_hat) #오차 계산
+      w_grad, b_grad = self.backprop(x_i, err) #역방향 계산
+      self.w-=w_grad #가중치 업데이트
+      self.b-=b_grad #절편 업데이트
+
+#뉴런 훈련
+neuron= Neuron()
+neuron.fit(x,y)
+#이하 산점도와 직선그래프 그리는 코드는 동일
+
+로지스틱 회귀: 분류 알고리즘 확률이 50% 초과이면 (a>0.5) 양성클래스(값은 1) 50%이하이면( a=< 0.5) 음성클래스(값은 0) 로지스틱 함수 = 시그모이드 함수
+
+로지스틱 회귀를 위한 뉴런 만들기: 일반화 성능을 평가하기 위해 훈련 세트와 테스트 세트로 나눔.
+이 때 훈련 데이터 세트를 나눌 때는 테스트세트보다 훈련 세트가 더 많아야 하며, 훈련 데이터세트를 나누기 전에 음성 클래스가 어느 한쪽에 치우치지 않도록 골고루 섞어야 함.
+로지스틱 회귀는 이벤트가 발생할 확률을 결정하는 데 사용되는 통계 모델입니다. 
+특성 간의 관계를 보여주고 특정 결과의 확률을 계산합니다. 로지스틱 회귀는 머신 러닝(ML)에서 정확한 예측을 생성하는 데 사용
+
+from six import b
+
+from skleran.datasets import load_breast_cancer
+cancer = load_breast_cancer()
+print(cancer.data.shape, cancer.target.shape)
+
+#박스 플롯(상자수염 그래프)그려 데이터 파악하기
+plt.boxplot(cancer.data)
+plt.xlabel('feature')
+plt.ylabel('value')
+lit.show()
+
+#타깃 데이터 확인하고 훈련 데이터 준비
+np.unique(cancer.target, return_counts=True)
+x=cancer.data
+y=cancer.target
+
+#훈련세트와 테스트세트 나누기
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(x,y,stratify=y, test_size=0.2, random_state=42)
+#분할 결과 확인
+print(x_train.shape, x_test.shape)
+np.unique(y_train, return_counts=True)
+
+#로지스틱 뉴런 구현하기
+class LogisticNeuron:
+  def__init__(self):
+    self.w=None
+    self.b=None # 가중치와 절편을 미리 초기화하지 않음(특성의 개수가 많이 필요하므로 나중에 초기화)
+    self.losses=[] #손실함수 결과값 저장 
+
+  def forpass(self, x):
+    z=np.sum(x*self.w)+self.b  #직선 방정식(정방향) 계산
+    return z
+
+  def backprop(self, x, err):
+    w_grad=x*err
+    g_grad=1*err  #가중치와 절편에 대한 그레이디언트 계산
+    return w_grad, b_grad
+
+  def fit(self, x, y, epochs=100):
+    self.w=np.ones(x.shape[1]) #가중치 초기화
+    self.b=0 #절편 초기화
+    for i in range(epochs):
+        loss=0
+        indexes = np.random,permutaiton(np.arrange(len(x))) #인덱스 섞기(에포크마다 훈련샘플 섞기)
+        for i in indexes
+          z= self.forpass(x[i])
+          a= self.activation(z) #활성화 함수 적용
+          arr= -(y[i]-a)
+          w_grad, b_grad = self.backprop(x[i], err)
+          self.w -= w_grad
+          self.b -= b_grad
+          a=np.clip(a, 1e-10, 1-1e-10)#안전한 로그 계산을 위해 클리핑 후 손실 누적
+          loss += -(y[i]*np).log(a)+(1-y[i]*np.log(1-a))#로지스틱 손실 공식. 에포크마다 평균 손실 저장
+        self.losses.append(loss/len(y))  
+
+
+
+  def activation(self,z):
+    a=1/(1+np.exp(-z)) #시그모이드 계산
+    return a
+
+  def predict(self, x):
+    z= [self.forpass(x_i)for x_i in x]#선형함수 적용
+    a= self.activaiton(np.array(z))#활성화함수 적용
+    return a>0.5 #게단함수 적용
+
+#모델 훈련하고 결과 확인
+neuron = LogisticNeuron()
+neuron fit(x_trian, y_train)
+np.mean(neuron.predict(x_test)=y_test)
+
+#score() 메소드 추가하고 단일층 신경망 훈련
+
+def predict(self,x):
+  z=[self, forpass(x_i) for x_i in x] #정방향 계산
+  return np.array(z)>0 #계단함수 적용, predict메소드에선 활성화 함수는 삭제(결과값만 받으면 되니 굳이 필요없기 때문)
+
+def score(self, x, y):
+  return np.mean(self.predict(x)==y)  
+
+layer=SingleLayer()
+layer.fit(x_train, y_train)
+layer.score(x_test, y_test)
+
+plt.plot(layer.losses)
+plt.xlabel('epoch')
+plt.ylabel('loss')
+plt.show()
+
+#사이킷런으로 
+
+#스케일을 조정해 모델 훈련(표준화): 평균0 분산1
+train_mean = np.mean(x_train, axis=0)
+train_std = np.std(x_train, axis=0)
+x_train_scaled = (x_train - train_mean) / train_std
+
+layer2 = SingleLayer()
+layer2.fit(x_train_scaled, y_train) #표준화 처리
+w2=[]
+w3=[]
+for w in layer2.w_history:
+  w2.append(w[2])
+  w3.append(w[3])
+plt.plot(w2,w3)
+plt.plot(w2[-1], w3[-1], 'ro')
+plt.xlabel('w[2]')
+plt.xlabel('w[3]')
+plt.show(
+    
+#검증 세트로 모델 성능 평가(검증세트 전처리)
+x_val_scaled = (x_val - train_mean) / train_std
+plt.plot(x_train_scaled[:50, 0], x_train_scaled[:50,1],'bo')
+plt.plot(x_val_scaled[:50, 0], x_val_scaled[:50,1],'ro')
+plt.xlabel('fature1')
+plt.ylabel('fature2')
+plt.legend(['train set', 'val. set'])
+plt.show()
+
+훈련세트와 검증세트를 에포크해 각각의 손실값을 구하고, 에포크값을 x축, 손실값을 y로 하여 훈련세트 손실값과 검증세트 손실값을 그래프로 나타냈을때 차이가 가장 적은
+(겹치는 부분이 많은)부분을 찾아, 적합한 에포크 값을 찾는다. (과대적합, 과소적합하지 않은 부분)
+
+검증세트에서 손실값이 줄어들수록 좋은건데, 더이상 손실값이 줄어들지 않거나 오히려 늘어나게 되면 최대한 손실값이 줄어드는 부분의 에포크값을 구하고, 
+그 값을 epochs=값으로 fit()메소드의 () 안에 지정하면 에포크에 해당하는 값까지 훈련하고 자동으로 조기종료된다.
+
+그래프의 기울기가 작을수록(가중치가 작을수록) 일반화하기에 좋다.
+반대로 가중치가 높아질수록 기울기가 높아지고 일반화가 힘듬.다만 너무 일반화가 되는 것도 안좋기 때문에 적정선을 찾아야 함. 
+
+#L1규제: 그레이디언트에서 alpha에 가중치의 부호를 곱해 그레이디언트에 더함.
+w_grad += alpha * np.sign(w)
+#L2규제: 그레이디언트에서 alpha에 가중치를 곱해 그레이디언트에 더함
+w-grad += algha * w
+#그레이디언트에서 페널티 항의 미분값을 더함
+w_grad += self.l1 * np.sign(self.w) + self.l2 *self.w
+self.w -= self.lr * w_grad #가중치 업데이트
+self.b -= b_grad #절편 업데이트
+
+def reg_loss(self):
+  return self.l1 * np.sum(np.abs(self.w))+self.l2/2*np.sum(self.w**2)
+  
+  #전체 샘플에 대해 행렬곱셈 적용(신경망 알고리즘의 벡터화)
+#(m,n)x(n,k)=(m,k)
+np.dot(x,w)
+
+#데이터셋 정방향 계산: 배치 경사 하강법은 전체 데이터넷을 모두 계산한 다음 그레이디언트를 업데이트
+def forpass(self,x):
+  z=np.dot(x,self.w)+self.b #==np.sum(x*self.w+self.b)
+  return z
+
+def backprop(self, x, err):
+  m=len(x)
+  w_grad = np.dot(x.T, err)/m #가중치에 대한 평균 그레이디언트 계산
+  b_grad = np.sum(err)/m #절편에 대한 평균 그레이디언트 계산
+  return w_grad, b_grad
+
+for i in range(epochs): #그냥 경사하강법과 달리 이중for문이 필요없음.(전체 샘플을 사용하므로 인덱스를 섞지 않아도 무방)
+  z=self.forpass(x)
+  a-self.activation(z)
+  err= -(y-a)
+   
+#2개의 층을 가진 신경망 구현
+def forpass(self, x): # 정방향 계산
+  z1=np.dot(x,self.w1)+self.b1 #첫번째 층의 선형식 계산
+  self.a1=self.activation(z1) #활성화 함수 적용
+  z2=np.dot(self.a1,self.w2)+self.b2 #두번째 층의 선형식 계산
+  return z2
+
+def backprop(self,x,err):
+  m=len(x) #샘플 개수
+
+  #출력층의 가중치와 절편에 대한 그레이디언트 계산
+  w2_grad=np.dot(self,a1.T, err) / m
+  b2_grad=np.sum(err) / m 
+
+  #시그모이드 함수까지 그레이디언트 계산
+  err_to_hidden=np.dot(err, self.w2.T) * self.a1 * (1-self.a1) 
+
+  #은닉층의 가중치와 절편에 대한 그레이디언트 계산
+  w1_grad=np.dot(x.T, err_to_hidden) / m
+  b1_grad=np.sum(err_to_hidden, axis=0) / m
+  return w1_grad, b1_grad, w2_grad, b2_grad
+
+  #init_weights()메소드 추가
+def init_weights(self, n_features):
+  self.w1=np.ones((n_features, self.units)) #(특성 개수, 은닉층의 크기)
+  self.b1=np.zeros(self.units) #은닉층의 크기
+  self.w2=np.ones((self.units,1)) #(은닉층의 크기, 1)
+  self.b2 = 0 #절편은 일반적으로 0으로 초기화
+
+  #가중치 초기화 개선
+class RandomInitNetwork(DualLayer):
+  def init_weights(self, n_features):
+    np.random.seed(42)
+    self.w1=np.random.normal(0,1,(n_features, self.units))
+    self.b1=np.zeros(self.units)
+    self.w2=np.random.normal(0,1,(self.units, 1))
+    self.b2=0
+    
+ from numpy.lib.index_tricks import IndexExpression
+from re import M
+#미니 배치를 사용해 모델 훈련
+class MinibatchNetwork(RandomInitNetwork):
+  def__init__(self,units=10, batch_size=32, learning_rate=0.1, l1=0, l2=0): #배치사이즈는 2의 배수로 권장
+    super().__init__(units, learning_rate, l1, l2)
+    self.batch_size = batch_size # 배치 크기
+
+  def fit(self, x, y, epochs=100, x_val=None, y_val=None):
+    y_val=y_val.reshape(-1,1) #타깃을 열 벡터로 바꿈
+    self.init_weights(x,shape[1]) #은닉층과 출력층의 가중치를 초기화
+    np.random.seed(42)
+    for i in range(epochs):
+      loss=0
+      # 제너레이터 함수에서 반환한 미니배치 순환
+      for x_batch, y_batch in self.gen_batch(x,y):
+        y_batch=y_batch.reshape(-1,1) #타깃을 열 벡터로 바꿈
+        m = len(x_batch) #샘플 개수 저장
+        a = self.training(x_batch, y_batch, m)
+
+      #미니 배치 제너레이터 함수
+      def gen_batch(self,x,y):
+        length=len(x)
+        bins=length//self.batch_size #미니 배치 횟수
+        if length % self.batch_size:
+          bins +=1 #나누어 떨어지지 않을 때
+        indexse =np.random.permutation(np.arange(len(x))) #인덱스를 섞음
+        x=x[indexes]
+        y=y[Indexes]
+        for i in range(bins):
+          start=self.batch_size * i
+          end=self.batch_size * (i+1)
+          yield x[start:end], y[start:end] #batch_size만큼 슬라이싱해 반환
+가중치가 커질수록 손실함수의 값도 커짐. 손실값을 최대한 낮춰야 하므로 가중치는 최대한 높이지 않아야 함.(가중치 규제)
+
