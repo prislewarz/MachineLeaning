@@ -1,0 +1,137 @@
+# Import packages
+import tensorflow as tf
+
+from tensorflow.data import Dataset
+from tensorflow.keras.datasets import fashion_mnist
+from tensorflow.keras import Input, Model
+from tensorflow.keras.layers import Dense, Conv2D, GlobalAveragePooling2D
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.metrics import CategoricalAccuracy
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.optimizers.schedules import CosineDecay
+
+# Config
+batch_size = 100
+epochs = 30
+lr = 1e-2
+momentum = 0.9
+
+# Download fashion_mnist dataset
+(train_image, train_label), (test_image, test_label) = fashion_mnist.load_data()
+
+# Split train / validation sets
+valid_image = train_image[55000:, :, :]
+valid_label = train_label[55000:]
+train_image = train_image[:55000, :, :]
+train_label = train_label[:55000]
+
+# Build dataset 1: Dataset loader
+train_dataset = Dataset.from_tensor_slices((train_image, train_label))
+valid_dataset = Dataset.from_tensor_slices((valid_image, valid_label))
+test_dataset = Dataset.from_tensor_slices((test_image, test_label))
+
+print("train_dataset", len(train_dataset))
+print("valid_dataset", len(valid_dataset))
+print("test_dataset", len(test_dataset))
+
+# Build dataset 2: Preprocessing, Grouping
+def preprocess(image, label):
+    """ Preprocess image and label
+        1) convert image type: 'uint8' -> 'float32'
+        2) normalize image: 0 ~ 255 -> 0 ~ 1
+        3) reshape image: (28, 28) -> (28, 28, 1)
+        4) convert label to one-hot vector
+    """
+    image = tf.cast(image, tf.float32)
+    image = image / 255.0
+    image = tf.reshape(image, (28, 28, 1))
+    label = tf.one_hot(label, depth=10, dtype=tf.float32)
+    return image, label
+    
+train_dataset = train_dataset.map(preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+train_dataset = train_dataset.shuffle(len(train_dataset))
+train_dataset = train_dataset.batch(batch_size)
+
+valid_dataset = valid_dataset.map(preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+valid_dataset = valid_dataset.batch(batch_size)
+
+test_dataset = test_dataset.map(preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+test_dataset = test_dataset.batch(batch_size)
+
+# Build model
+inputs = Input(shape=(28, 28, 1), name='input')
+x = Conv2D(24, 3, strides=1, padding='same', activation='relu', name='conv1')(inputs)
+x = Conv2D(48, 3, strides=2, padding='same', activation='relu', name='conv2')(x)
+x = Conv2D(96, 3, strides=2, padding='same', activation='relu', name='conv3')(x)
+x = Conv2D(192, 3, strides=2, padding='same', activation='relu', name='conv4')(x)
+x = GlobalAveragePooling2D(name='pool')(x)
+x = Dense(10, activation='softmax', name='fc')(x)
+model = Model(inputs, x, name='conv1')
+model.summary()
+
+# Build loss 
+loss = CategoricalCrossentropy()
+
+# Build performance metric 
+metric = CategoricalAccuracy()
+
+# Build optimizer
+lr_schedule = CosineDecay(lr, len(train_dataset) * epochs)
+optimizer = SGD(lr_schedule, momentum=momentum)
+
+# Compile model
+model.compile(optimizer=optimizer, loss=loss, metrics=metric)
+
+# Train model
+history = model.fit(train_dataset, epochs=epochs, validation_data=valid_dataset)
+
+# Visualize learning curve (it is not an essential step)
+import pandas as pd
+import matplotlib.pyplot as plt
+
+losses = pd.DataFrame({
+    'train_loss': history.history['loss'], 
+    'valid_loss': history.history['val_loss'],
+})
+accuracies = pd.DataFrame({
+    'train_acc': history.history['categorical_accuracy'], 
+    'valid_acc': history.history['val_categorical_accuracy'],
+})
+
+losses.plot(figsize=(8,6))
+plt.grid(True)
+plt.gca().set_xlim(0, 15)
+plt.show()
+
+accuracies.plot(figsize=(8,6))
+plt.grid(True)
+plt.gca().set_xlim(0, 15)
+plt.show()
+
+# Test model
+model.evaluate(test_dataset)
+
+# Predict
+new_input = test_image[0, :, :]
+new_input = tf.cast(new_input, tf.float32) / 255.0
+new_input = tf.reshape(new_input, (1, 28, 28, 1))
+prediction = model.predict(new_input)
+
+# Visualize
+for i in range(28):
+    x = ''
+    for j in range(28):
+        x += f'{test_image[0, i, j]:3} '
+    print(x)
+
+x = ''
+for i in range(10):
+    x += f'{prediction[0, i]:.2f} '
+print(x)
+
+# Save model
+model.save('mlp2.h5')
+
+# Load model
+model2 = tf.keras.models.load_model('mlp2.h5')
+model2.summary()
