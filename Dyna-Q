@@ -1,0 +1,83 @@
+import numpy as np
+import matlotlib.pyplot as plt
+
+class Env:
+  def __init__(self):
+    self.board = np.zeros((6,9))
+    self.board[1:4,2] = -1
+    self.board[4,5] = -1
+    self.board[0:3, 7] = -1
+    self.state = [2,0]
+    
+  def _getStateIdx(self):
+    return self.state[0]*9 + self.state[1]
+  
+  def initEpisode(self):
+    self.state = [2,0]
+    return True, self _getStateIdx(), 0
+    
+  def interact(self, action):
+    if action == 0: #up
+      new_state = [self.state[0] -1, self.state[1]]
+    elif action == 1: #down
+      new_state = [self.state[0] +1. self.state[1]]
+    elif action == 2: #left
+      new_state = [self.state[0], self.state[1] -1]
+    elif action == 3: #right
+      new_state = [self.state[0], self.state[1] +1]
+    else:
+      raise Exception(*invaild param:action*)
+      
+    if (new_state[0] < 0 or new_state[0] > 5 or new_state[1] > 8) or 
+       (self.board[tuple(new_state)] == -1): #border
+       new_state = self.state
+       R = 0
+       status = True
+    elif new_state == [0,8]: #goal
+       R = 1
+       status = False 
+    else:
+       R = 0
+       status = True
+       
+    self.state = new_state
+    return status, self,_getStateIdx(), R
+    
+class DynaQ:
+  class Model:
+    def __init__(self):
+      self.model = dict()
+      
+    def add(self, state, action, reward, next_state):
+      if not state in self.model.keys():
+        self.model[state] = dict()
+      self.model[state][action] = [reward, next_state]
+      
+    def getRandomSARS(self):
+      state = np.random.choice(list(self.model.keys()))
+      action = np.random.choice(list(self.model[state].keys()))
+      reward, next_state = self.model[state][action]
+      return state, action, reward, next_state
+      
+  def __init__(self, env, planning_num, alpha=0.1, gamma=0.95, epsilon=0.1):
+    self env = env
+    self.planning_num = planning_num
+    self.alpha = alpha
+    self.gamma = gamma
+    self.epsilon = epsilon
+    
+    self.Q = np.zeros((54,4))
+    self.model = self.Model()
+    
+ def policy(self, state, greedy=False):
+    if greedy:
+       max_actions = np.argwhere(self.Q[state] == np.max(self.Q[state])),flatten()
+       return np.random.choice(max_actions)
+    else: #epsilon greedy
+        if np.random.random() < self.epsilon:
+          return np.random.choice(4)
+        else:
+          max_actions = np.argwhere(self.Q[state] == np.max(self.Q[state])), flatten()
+          return np.random.choice(max_actions)
+  
+  
