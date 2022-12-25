@@ -57,3 +57,62 @@ model.summary()
 
 # Build loss 
 loss = CategoricalCrossentropy()
+# Build performance metric 
+metric = CategoricalAccuracy()
+# Build optimizer
+lr_schedule = CosineDecay(lr, len(train_dataset) * epochs)
+optimizer = SGD(lr_schedule, momentum=momentum)
+# Compile model
+model.compile(optimizer=optimizer, loss=loss, metrics=metric)
+# Train model
+history = model.fit(train_dataset, epochs=epochs, validation_data=valid_dataset)
+
+# Visualize learning curve (it is not an essential step)
+import pandas as pd
+import matplotlib.pyplot as plt
+
+losses = pd.DataFrame({
+    'train_loss': history.history['loss'], 
+    'valid_loss': history.history['val_loss'],
+})
+accuracies = pd.DataFrame({
+    'train_acc': history.history['categorical_accuracy'], 
+    'valid_acc': history.history['val_categorical_accuracy'],
+})
+
+losses.plot(figsize=(8,6))
+plt.grid(True)
+plt.gca().set_xlim(0, 15)
+plt.show()
+
+accuracies.plot(figsize=(8,6))
+plt.grid(True)
+plt.gca().set_xlim(0, 15)
+plt.show()
+
+# Test model
+model.evaluate(test_dataset)
+# Predict
+new_input = test_image[0, :, :]
+new_input = tf.cast(new_input, tf.float32) / 255.0
+new_input = tf.reshape(new_input, (1, 784))
+prediction = model.predict(new_input)
+
+# Visualize
+for i in range(28):
+    x = ''
+    for j in range(28):
+        x += f'{test_image[0, i, j]:3} '
+    print(x)
+
+x = ''
+for i in range(10):
+    x += f'{prediction[0, i]:.2f} '
+print(x)
+
+# Save model
+model.save('mlp.h5')
+# Load model
+model2 = tf.keras.models.load_model('mlp.h5')
+model2.summary()
+
