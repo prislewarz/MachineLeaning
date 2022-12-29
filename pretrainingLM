@@ -1,0 +1,21 @@
+# import nemo nlp collection 
+from nemo.collections import nlp as nemo_nlp
+
+# load the bert-base-uncased tokenizer 
+tokenizer_uncased = nemo_nlp.modules.get_tokenizer(tokenizer_name="bert-base-uncased")
+
+# get the vocabulary size
+print(" The vocabulary size: ", tokenizer_uncased.vocab_size)
+
+# Bert tokenizer for years
+print("Tokenized year: ", tokenizer_uncased.text_to_tokens('2019'))
+print("Tokenized year: ", tokenizer_uncased.text_to_tokens('2020'))
+print("Tokenized year: ", tokenizer_uncased.text_to_tokens('2021'))
+print("Tokenized year: ", tokenizer_uncased.text_to_tokens('2022'))
+print("Tokenized year: ", tokenizer_uncased.text_to_tokens('2023'))
+print("Tokenized year: ", tokenizer_uncased.text_to_tokens('2030'))
+
+# Bert tokenizer for domain-specific example
+SAMPLES = "Further studies suggested that low dilutions of C5D serum contain a factor or factors interfering at some step in the hemolytic assay of C5 rather than a true C5 inhibitor."
+print("Tokenized sentence: ", tokenizer_uncased.text_to_tokens(SAMPLES))
+
