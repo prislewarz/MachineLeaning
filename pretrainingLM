@@ -19,3 +19,57 @@ print("Tokenized year: ", tokenizer_uncased.text_to_tokens('2030'))
 SAMPLES = "Further studies suggested that low dilutions of C5D serum contain a factor or factors interfering at some step in the hemolytic assay of C5 rather than a true C5 inhibitor."
 print("Tokenized sentence: ", tokenizer_uncased.text_to_tokens(SAMPLES))
 
+# solution 
+# Tokenize a new term
+TEXT = 'COVID-19'
+print("Tokenized sentence: ", tokenizer_uncased.text_to_tokens(TEXT))
+# Add some medical jargon to the vocabulary of Bert tokenizer
+additional_tokens = tokenizer_uncased.tokenizer.add_tokens(["dilutions", "hemolytic"])
+print(" The vocabulary size before: ", tokenizer_uncased.vocab_size)
+print(" The vocabulary size after : ", tokenizer_uncased.vocab_size)
+# Tokenize the sentence with the new vocabulary 
+print("Tokenized sentence: ", tokenizer_uncased.text_to_tokens(SAMPLES))
+
+vocab_size= 10000
+text_corpus=["/dli/task/data/train.txt"]
+
+# add the special tokens required for BERT pretraining.
+special_tokens = ["<PAD>","<UNK>","<CLS>","<SEP>","<MASK>"]
+
+from tokenizers import BertWordPieceTokenizer
+
+my_bert_tokenizer = BertWordPieceTokenizer()
+my_bert_tokenizer.train(files=text_corpus, vocab_size=vocab_size,
+                        min_frequency=1, special_tokens=special_tokens,
+                        show_progress=True, wordpieces_prefix="##")
+                        
+# get the new vocabulary size
+print(" The new vocabulary size  : ", len(my_bert_tokenizer.get_vocab()))
+# save the new vocabulary 
+my_bert_tokenizer.save_model(directory="/dli/task/data/")
+!tail -20 /dli/task/data/vocab.txt 
+
+# load the tokenizer from the vocabulary 
+special_tokens_dict = {"unk_token": "<UNK>", "sep_token": "<SEP>", "pad_token": "<PAD>", "bos_token": "<CLS>", "mask_token": "<MASK>","eos_token": "<SEP>", "cls_token": "<CLS>"}
+tokenizer_custom = nemo_nlp.modules.get_tokenizer(tokenizer_name="bert-base-uncased", vocab_file='/dli/task/data/vocab.txt', special_tokens=special_tokens_dict)
+
+print("BERT tokenizer with custom vocabulary: ", tokenizer_custom.text_to_tokens(SAMPLES))
+# Train a larger vocabulary 
+vocab_size = None #FIXME
+my_bert_tokenizer_15k= None #FIXME
+my_bert_tokenizer_15k.train(files=text_corpus, vocab_size=vocab_size, 
+                            min_frequency=1, special_tokens=special_tokens, 
+                            show_progress=True, wordpieces_prefix="##")
+print(" The new vocabulary size  : ", len(my_bert_tokenizer_15k.get_vocab()))
+
+# Show the configuration file
+! cat nemo/examples/nlp/language_modeling/conf/bert_pretraining_from_text_config.yaml
+%%time
+# Override the parameters specific to our data; run only two epochs for now
+! python nemo/examples/nlp/language_modeling/bert_pretraining.py \
+    model.train_ds.data_file=/dli/task/data/train.txt\
+    model.validation_ds.data_file=/dli/task/data/test.txt\
+    model.tokenizer.vocab_file=/dli/task/data/vocab.txt\
+    model.train_ds.batch_size=16 \
+    trainer.max_epochs=2
+    
