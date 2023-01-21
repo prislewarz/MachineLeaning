@@ -1,0 +1,124 @@
+!tree nemo/examples/nlp -L 2
+TC_DIR = "/dli/task/nemo/examples/nlp/text_classification"
+!tree $TC_DIR
+TC3_DATA_DIR = '/dli/task/data/NCBI_tc-3'
+!ls $TC3_DATA_DIR/*.tsv
+
+# Take a look at the tab separated data
+print("*****\ntrain.tsv sample\n*****")
+!head -n 3 $TC3_DATA_DIR/train.tsv
+print("\n\n*****\ndev.tsv sample\n*****")
+!head -n 3 $TC3_DATA_DIR/dev.tsv
+print("\n\n*****\ntest.tsv sample\n*****")
+!head -n 3 $TC3_DATA_DIR/test.tsv
+
+!sed 1d $TC3_DATA_DIR/train.tsv > $TC3_DATA_DIR/train_nemo_format.tsv
+!sed 1d $TC3_DATA_DIR/dev.tsv > $TC3_DATA_DIR/dev_nemo_format.tsv
+!sed 1d $TC3_DATA_DIR/test.tsv > $TC3_DATA_DIR/test_nemo_format.tsv
+
+# Take a look at the tab separated data
+# "1" is "positive" and "0" is "negative"
+print("*****\ntrain_nemo_format.tsv sample\n*****")
+!head -n 3 $TC3_DATA_DIR/train_nemo_format.tsv
+print("\n\n*****\ndev_nemo_format.tsv sample\n*****")
+!head -n 3 $TC3_DATA_DIR/dev_nemo_format.tsv
+print("\n\n*****\ntest_nemo_format.tsv sample\n*****")
+!head -n 3 $TC3_DATA_DIR/test_nemo_format.tsv
+
+TC3_DATA_DIR = '/dli/task/data/NCBI_tc-3'
+!ls $TC3_DATA_DIR/*.tsv
+CONFIG_DIR = "/dli/task/nemo/examples/nlp/text_classification/conf"
+CONFIG_FILE = "text_classification_config.yaml"
+!cat $CONFIG_DIR/$CONFIG_FILE
+
+from omegaconf import OmegaConf
+
+config = OmegaConf.load(CONFIG_DIR + "/" + CONFIG_FILE)
+print(OmegaConf.to_yaml(config.model))
+print(OmegaConf.to_yaml(config.trainer))
+print(OmegaConf.to_yaml(config.exp_manager))
+
+%%time
+# The training takes about 2 minutes to run
+
+TC_DIR = "/dli/task/nemo/examples/nlp/text_classification"
+
+# set the values we want to override
+NUM_CLASSES = 3
+MAX_SEQ_LENGTH = 128
+PATH_TO_TRAIN_FILE = "/dli/task/data/NCBI_tc-3/train_nemo_format.tsv"
+PATH_TO_VAL_FILE = "/dli/task/data/NCBI_tc-3/dev_nemo_format.tsv"
+PATH_TO_TEST_FILE = "/dli/task/data/NCBI_tc-3/test_nemo_format.tsv"
+# disease domain inference sample answers should be 0, 1, 2 
+INFER_SAMPLES_0 = "In contrast no mutations were detected in the p53 gene suggesting that this tumour suppressor is not frequently altered in this leukaemia "
+INFER_SAMPLES_1 = "The first predictive testing for Huntington disease  was based on analysis of linked polymorphic DNA markers to estimate the likelihood of inheriting the mutation for HD"
+INFER_SAMPLES_2 = "Further studies suggested that low dilutions of C5D serum contain a factor or factors interfering at some step in the hemolytic assay of C5 rather than a true C5 inhibitor or inactivator"
+MAX_EPOCHS = 3
+
+# Run the training script, overriding the config values in the command line
+!python $TC_DIR/text_classification_with_bert.py \
+        model.dataset.num_classes=$NUM_CLASSES \
+        model.dataset.max_seq_length=$MAX_SEQ_LENGTH \
+        model.train_ds.file_path=$PATH_TO_TRAIN_FILE \
+        model.validation_ds.file_path=$PATH_TO_VAL_FILE \
+        model.test_ds.file_path=$PATH_TO_TEST_FILE \
+        model.infer_samples=["$INFER_SAMPLES_0","$INFER_SAMPLES_1","$INFER_SAMPLES_2"] \
+        trainer.max_epochs=$MAX_EPOCHS
+        
+!ls *.nemo
+%%time
+# The training takes about 2 minutes to run
+
+TC_DIR = "/dli/task/nemo/examples/nlp/text_classification"
+
+# set the values we want to override
+# set the values we want to override
+NUM_CLASSES = 3
+MAX_SEQ_LENGTH = 128
+PATH_TO_TRAIN_FILE = "/dli/task/data/NCBI_tc-3/train_nemo_format.tsv"
+PATH_TO_VAL_FILE = "/dli/task/data/NCBI_tc-3/dev_nemo_format.tsv"
+PATH_TO_TEST_FILE = "/dli/task/data/NCBI_tc-3/test_nemo_format.tsv"
+# disease domain inference sample answers should be 0, 1, 2 
+INFER_SAMPLES_0 = "In contrast no mutations were detected in the p53 gene suggesting that this tumour suppressor is not frequently altered in this leukaemia "
+INFER_SAMPLES_1 = "The first predictive testing for Huntington disease  was based on analysis of linked polymorphic DNA markers to estimate the likelihood of inheriting the mutation for HD"
+INFER_SAMPLES_2 = "Further studies suggested that low dilutions of C5D serum contain a factor or factors interfering at some step in the hemolytic assay of C5 rather than a true C5 inhibitor or inactivator"
+MAX_EPOCHS = 5
+AMP_LEVEL = 'O1'
+PRECISION = 16
+LR = 5.0e-05
+
+# Override the config values in the command line
+!python $TC_DIR/text_classification_with_bert.py \
+        model.dataset.num_classes=$NUM_CLASSES \
+        model.dataset.max_seq_length=$MAX_SEQ_LENGTH \
+        model.train_ds.file_path=$PATH_TO_TRAIN_FILE \
+        model.validation_ds.file_path=$PATH_TO_VAL_FILE \
+        model.test_ds.file_path=$PATH_TO_TEST_FILE \
+        model.infer_samples=["$INFER_SAMPLES_0","$INFER_SAMPLES_1","$INFER_SAMPLES_2"] \
+        trainer.max_epochs=$MAX_EPOCHS \
+        trainer.amp_level=$AMP_LEVEL \
+        trainer.precision=$PRECISION \
+        model.optim.lr=$LR
+        
+ %%js
+const href = window.location.hostname +'/tensorboard/';
+let a = document.createElement('a');
+let link = document.createTextNode('Open Tensorboard!');
+a.appendChild(link);
+a.href = "http://" + href;
+a.style.color = "navy"
+a.target = "_blank"
+element.append(a);
+
+# complete list of supported BERT-like models
+from nemo.collections import nlp as nemo_nlp
+nemo_nlp.modules.get_pretrained_lm_models_list()
+
+# Restart the kernel
+import IPython
+app = IPython.Application.instance()
+app.kernel.do_shutdown(True)
+
+
+
+
