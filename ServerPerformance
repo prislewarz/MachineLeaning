@@ -1,0 +1,11 @@
+!ls ./results/bertQA-torchscript/
+!ls ./results/bertQA-onnx-trt-dynbatch
+
+# Set the server hostname and check it - you should get a message that "Triton Server is ready!"
+tritonServerHostName = "triton"
+!./utilities/wait_for_triton_server.sh {tritonServerHostName}
+
+# Use a curl command to request the metrics
+prometheus_url = tritonServerHostName + ":8002/metrics"
+!curl -v {prometheus_url}
+
