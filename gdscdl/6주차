@@ -1,0 +1,112 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_boston
+import warnings
+import torch
+
+warnings.filterwarnings('ignore')
+
+data = load_boston() #Boston 집값 예측
+
+df = pd.DataFrame(data['data'],columns=data['feature_names'])  # 데이터셋 불러오기
+df['target'] = data['target']
+print(df.shape)
+
+df.head()
+Num_feature= len(df.drop('target',1).columns) # 컬럼수
+
+from torch.utils.data import Dataset
+from sklearn.preprocessing import StandardScaler
+
+class BostonData(Dataset): #Dataset의 속성들을 상속
+  def __init__(self,data, target = 'target',normalize=True): # 데이터 불러오고 전처리하는 공간!
+    self.x = data.drop(target,1)
+
+    if normalize:
+      scaler = StandardScaler()
+      self.x = pd.DataFrame(scaler.fit_transform(self.x))
+
+    self.y = data['target']
+
+    #tensor 변환
+    self.x=torch.tensor(self.x.values).float()
+    self.y=torch.tensor(self.y).float()
+
+  def __len__(self):  # 길이 반환
+    return len(self.x)
+
+  def __getitem__(self,idx): # item 반환
+    x=self.x[idx]
+    y=self.y[idx]
+
+    return x,y
+    
+dataset = BostonData(df, 'target', True) # 데이터셋 불러오기
+
+from torch.utils.data import DataLoader
+
+data_loader = DataLoader(dataset, batch_size=32,shuffle=True)  #데이터로더에 데이터 넣기
+
+x,y = next(iter(data_loader)) # batch된 데이터가 iterate하여 접근 할떄 사용
+x.shape, y.shape
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
+
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+
+class Reg(nn.Module):
+  def __init__(self, num_features):  # 신경망 구성요소
+    super(Reg,self).__init__()  #super로 부모 클래스를 상속.
+
+    self.fc1=nn.Linear(num_features,32)
+    self.fc2=nn.Linear(32,8)
+    self.output=nn.Linear(8,1)
+  
+  def forward(self,x): #신경망 동작 정의
+    x = F.relu(self.fc1(x)) # F -> nn은 클래스, F는 함수 형태 /nn은 인스턴스화 필요! init에서 모델을 정의
+    x = F.relu(self.fc2(x))
+    x = self.output(x)
+
+    return x
+    
+model = Reg(Num_feature)
+model.to(device)
+model
+
+criterion = nn.MSELoss().to(device)
+optimizer = optim.Adam(model.parameters(),lr=0.005)
+
+num_epoch = 200
+
+losses = []
+for epoch in range(num_epoch):
+  running_loss=0
+
+  for x,y in data_loader:
+    x = x.to(device)
+    y = y.to(device)
+
+    optimizer.zero_grad()
+
+    y_hat = model(x)
+
+    loss = criterion(y,y_hat)
+    loss.backward()
+    
+    optimizer.step()
+
+    running_loss += loss.item()
+
+  loss = running_loss/len(data_loader)
+  losses.append(loss)
+
+
+  if epoch % 20 == 0:
+    print("{0} loss = {1:.5f}".format(epoch,loss))
+    
+plt.figure()
+plt.plot(losses[:200])
+plt.show()

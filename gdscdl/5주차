@@ -1,0 +1,168 @@
+# pytorch와 각종 필요한 재료 Import
+import torch
+import random
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+# 동일한 결과를 출력하기 위한 코드
+random.seed(777)
+torch.manual_seed(777)
+if device == 'cuda':
+    torch.cuda.manual_seed_all(777)
+    
+# 입력 데이터 쌍 생성 (x, y)
+x_train = torch.FloatTensor([[1], [2], [3]])
+y_train = torch.FloatTensor([[3], [5], [7]]) # y=2x+1
+
+# weight, bias 초기화
+# requires_grad: Backpropagation 과정에서 이루어지는 연산(Autograd 연산)을 모두 추적해야 한다 = 결과를 저장하고 있어라!
+W = torch.zeros(1, requires_grad=True)
+b = torch.zeros(1, requires_grad=True)
+
+# 선형 회귀 모델 생성
+y_hat = x_train * W + b
+
+# cost 함수와 optimizer 선언
+cost = torch.nn.MSELoss() # MSE loss
+optimizer = torch.optim.SGD([W, b], lr=0.01) # Stochastic Gradient Descent
+
+""" < Optimizer parameter 설정 방법 >
+1. torch.optim.SGD([W, b], lr=0.01) -> 우리가 모델의 관계식을 직접 설정해줄 때
+2. torch.optim.SGD(model.parameters(), lr=0.01) -> torch가 모델에 대한 정보를 이미 알고 있을 때
+* learning rate
+: 각 optimizer에서 자주 쓰는 learning rate가 default로 이미 저장 
+-> SGD의 경우 우리가 직접 설정해줘야 함 (https://pytorch.org/docs/stable/generated/torch.optim.SGD.html)
+""" 
+
+for epoch in range(10001):
+    # y_hat 계산
+    y_hat = x_train * W + b
+
+    # cost 계산
+    loss = cost(y_hat, y_train)
+
+    # cost로 모델 개선
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    # 100번마다 로그 출력
+    if epoch % 100 == 0:
+        print('Epoch {:4d}/{} W: {:.3f}, b: {:.3f} Cost: {:.6f}'.format(
+            epoch, 10001, W.item(), b.item(), loss.item()
+        )) # item 메소드: torch.tensor 형태로 나타나는 tensor 값에서 우리가 필요한 값(cost, bias, weight 등)만 뽑아내줌
+        
+# 입력 데이터 쌍 생성 (x, y)
+x_train = torch.FloatTensor([[1, 2], [2, 3], [3, 1], [4, 3], [5, 3], [6, 2]])
+y_train = torch.FloatTensor([[0], [0], [0], [1], [1], [1]])
+
+# weight, bias 초기화
+W = torch.zeros((2, 1), requires_grad=True) 
+b = torch.zeros(1, requires_grad=True)
+""" 
+  weight는 x_train의 shape만큼 초기화 해주어야 함
+"""
+
+# Logistic Regression 모델 선언
+y_hat = torch.sigmoid(x_train.matmul(W) + b)
+
+# cost 함수와 optimizer 선언
+cost = torch.nn.BCELoss().to(device)
+optimizer = torch.optim.SGD([W, b], lr=1)
+
+for epoch in range(10001):
+
+    # Cost 계산
+    y_hat = torch.sigmoid(x_train.matmul(W) + b)
+    loss = cost(y_hat, y_train)
+
+    # cost로 모델 개선
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    # 100번마다 로그 출력
+    if epoch % 100 == 0:
+        print('Epoch {:4d}/{} Cost: {:.6f}'.format(
+            epoch, 10001, loss.item()))
+            
+import torchvision.datasets as dataset
+import torchvision.transforms as transforms
+
+# MNIST dataset
+mnist_train = dataset.MNIST(root='MNIST_data/',
+                          train=True,
+                          transform=transforms.ToTensor(),
+                          download=True)
+
+mnist_test = dataset.MNIST(root='MNIST_data/',
+                         train=False,
+                         transform=transforms.ToTensor(),
+                         download=True)
+"""
+<torchvision>
+: 유명한 데이터셋(MNIST, ciFar10, ciFar100 등), 모델 아키텍처, 컴퓨터 비전 테스크에 알맞도록 이미지 변형이 가능하게 하는 라이브러리
+
+<transform>
+: 변형(transform)을 통해 데이터를 조작하고 학습에 적합하게 만듦
+-> 여기서는 MNIST 이미지 데이터들을 tensor 형태로 바꾸어라!
+"""
+
+# Hyper Parameter
+batch_size = 128
+lr = 0.01
+
+# DataLoader: 많은 양의 데이터들을 배치(batch) 단위로 학습할 수 있도록 잘라주는 것
+data_loader = torch.utils.data.DataLoader(dataset=mnist_train,
+                                          batch_size=batch_size,
+                                          shuffle=True,
+                                          drop_last=True)
+                                          
+# model 선언
+model = torch.nn.Linear(784, 10, bias=True).to(device)
+
+"""
+input: 784개의 input 이미지
+output: 10개의 클래스
+"""
+
+# Cost와 Optimizer 선언
+criterion = torch.nn.CrossEntropyLoss().to(device) # softmax 연산을 내포하는 CrossEntropyLoss
+optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+# 학습 (Training)
+total_batch = len(data_loader)
+for epoch in range(20):
+    avg_cost = 0
+    for X, Y in data_loader:
+        X = X.view(-1, 28 * 28).to(device) # 이미지를 한 줄로 쫙 펴주는 과정
+        Y = Y.to(device) # one-hot encoding 안 함
+
+        optimizer.zero_grad()
+        Y_hat = model(X) # 대문자 주의!
+        cost = criterion(Y_hat, Y)
+        cost.backward()
+        optimizer.step()
+
+        avg_cost += cost / total_batch # epoch의 오차를 계산하기 위함
+    print('Epoch:', '%04d' % (epoch + 1), 'cost =', '{:.9f}'.format(avg_cost))
+print('Learning finished')
+
+# test 데이터 만들기
+#X_test와 Y_test로 나누어주는 과정
+X_test = mnist_test.test_data.view(-1, 28 * 28).float().to(device)
+Y_test = mnist_test.test_labels.to(device)
+
+"""
+https://qlsenddl-lab.tistory.com/38
+Expected object of scalar type Float but got scalar type Double for argument
+"""
+
+# Test
+with torch.no_grad():
+    prediction = model(X_test)
+    correct_prediction = torch.argmax(prediction, 1) == Y_test 
+    # argmax: 행렬에서 가장 큰 값을 가지는 '인덱스(클래스)'로 하겠다! (행렬, dimension)
+
+    accuracy = correct_prediction.float().mean()
+    print('Accuracy:', accuracy.item())

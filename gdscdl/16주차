@@ -1,0 +1,167 @@
+!pip install datasets evaluate transformers[sentencepiece]
+!pip install accelerate
+!apt install git-lfs
+!pip install sacrebleu
+
+from datasets import load_dataset
+
+dataset = load_dataset("msarmi9/korean-english-multitarget-ted-talks-task") # https://huggingface.co/datasets/msarmi9/korean-english-multitarget-ted-talks-task
+
+dataset # 데이터셋 구조
+
+print(dataset['train'][1]["korean"])
+print(dataset['train'][1]["english"]) # 데이터 확인하기
+
+from transformers import pipeline
+
+model_checkpoint = "Helsinki-NLP/opus-mt-ko-en" # https://huggingface.co/Helsinki-NLP/opus-mt-ko-en
+translator = pipeline("translation", model=model_checkpoint) # https://huggingface.co/docs/transformers/main_classes/pipelines
+translator("나는 밥을 먹었다")
+
+from transformers import AutoTokenizer
+
+model_checkpoint = "Helsinki-NLP/opus-mt-ko-en"
+tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, return_tensors="pt") #파이토치 텐서로 반환
+
+en_sentence = dataset['train'][1]["english"]
+kr_sentence = dataset['train'][1]["korean"]
+
+inputs = tokenizer(kr_sentence, text_target=en_sentence)
+inputs # input_ids, token_type_ids, attention_mask 생성
+
+wrong_targets = tokenizer(en_sentence)
+print(tokenizer.convert_ids_to_tokens(wrong_targets["input_ids"])) # 기본 token(한글)
+print(tokenizer.convert_ids_to_tokens(inputs["labels"])) # 실제 token (영어)
+
+max_length = 128
+
+
+def preprocess_function(examples):
+    inputs = examples["korean"] #한국어를
+    targets = examples["english"] #영어로
+    model_inputs = tokenizer(
+        inputs, text_target=targets, max_length=max_length, truncation=True # 토크나이저 max_length-> 길이 제한, padding-> padding, truncation -> 자르기
+    )
+    return model_inputs
+    
+tokenized_datasets = dataset.map(
+    preprocess_function,
+    batched=True,
+    remove_columns=['korean','english']
+)
+
+tokenized_datasets
+
+from transformers import AutoModelForSeq2SeqLM
+
+model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
+
+from transformers import DataCollatorForSeq2Seq
+
+data_collator = DataCollatorForSeq2Seq(tokenizer, model=model) # Batch로 만들어주는 역할
+
+batch = data_collator([tokenized_datasets["train"][i] for i in range(1, 3)])
+batch.keys()
+
+batch["labels"] # 길이가 짧은 문장은 -100
+
+for i in range(1, 3):
+    print(tokenized_datasets["train"][i]["labels"]) #-100이 없음
+    
+import evaluate
+
+metric = evaluate.load("sacrebleu") # https://huggingface.co/spaces/evaluate-metric/bleu
+# 번역 평가 모델
+
+predictions = [
+    "먹었다. 나는 밥을"
+]
+references = [
+    [
+        "나는 밥을 먹었다."
+    ]
+]
+metric.compute(predictions=predictions, references=references)
+
+predictions = [
+    "나는 밥을 먹었다."
+]
+references = [
+    [
+        "나는 밥을 먹었다."
+    ]
+]
+metric.compute(predictions=predictions, references=references)
+
+import numpy as np
+
+
+def compute_metrics(eval_preds):
+    preds, labels = eval_preds
+    # tuple이라면 앞에 것 
+    if isinstance(preds, tuple):
+        preds = preds[0]
+
+    # batch 디코드하기 skip_special_tokens ->  [CLS],[SEP]
+    decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+
+    # 앞에 나온 -100은 변환하지 않음
+    labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+
+    # 간단한 전처리
+    decoded_preds = [pred.strip() for pred in decoded_preds]
+    decoded_labels = [[label.strip()] for label in decoded_labels]
+
+    result = metric.compute(predictions=decoded_preds, references=decoded_labels)
+    return {"bleu": result["score"]}
+    
+from huggingface_hub import notebook_login
+
+notebook_login()
+
+from transformers import Seq2SeqTrainingArguments
+
+args = Seq2SeqTrainingArguments(
+    f"opus-mt-ko-en",
+    evaluation_strategy="no",#평가 여부 
+    save_strategy="epoch", # 저장 단위
+    learning_rate=2e-5,
+    per_device_train_batch_size=32,
+    per_device_eval_batch_size=64정
+    weight_decay=0.01,
+    save_total_limit=3,
+    num_train_epochs=3,
+    predict_with_generate=True,
+    fp16=True, #GPU에서 속도 증가
+    push_to_hub=True, #Hub에 모델 업로드(save) #hub_model_id -> 저장소 전체 이름 지저
+)
+
+from transformers import Seq2SeqTrainer
+
+trainer = Seq2SeqTrainer(
+    model,
+    args,
+    train_dataset=tokenized_datasets["train"],
+    eval_dataset=tokenized_datasets["validation"],
+    data_collator=data_collator,
+    tokenizer=tokenizer,
+    compute_metrics=compute_metrics,
+)
+
+trainer.evaluate(max_length=max_length) # 처음 evaluate
+
+trainer.train() # Train epoch-> 3 기본
+
+trainer.evaluate(max_length=max_length) # train 한 뒤 evaluate
+
+trainer.push_to_hub(tags="translation", commit_message="Training complete") # 모델을 올려보자
+
+# 다른 방법들 -> https://zerolang.tistory.com/m/65
+
+from transformers import pipeline
+
+model_checkpoint = "keonju/opus-mt-ko-en" #앞서 올린 모델 사용
+translator = pipeline("translation", model=model_checkpoint)
+translator("오늘은 밥을 뭘 먹어야할까?")
+

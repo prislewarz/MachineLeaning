@@ -1,0 +1,292 @@
+from google.colab import drive # 구글 마운트
+drive.mount('/content/drive/')
+
+import torch
+from torch.utils.data.dataloader import DataLoader
+import torch.nn as nn
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+import pandas as pd
+
+data = pd.read_csv("/content/drive/MyDrive/rnn_train.csv")  # 데이터 파일을 읽어옴
+data.head()  # 5개의 데이터를 표시
+
+data.info() # 967일
+
+import matplotlib.pyplot as plt
+
+data_used = data.iloc[:, 1:4]  # 개장가, 최고가, 최저가 추가
+data_used["Close"] = data["Close"]  # 종가 추가
+hist = data_used.hist()
+plt.show()
+
+import numpy as np
+from torch.utils.data.dataset import Dataset
+
+class Netflix(Dataset):  # 클래스 선언
+    def __init__(self):
+        self.csv = pd.read_csv("/content/drive/MyDrive/rnn_train.csv") # 데이터 읽기
+
+        # 입력 데이터 정규화
+        self.data = self.csv.iloc[:, 1:4].values   # 종가를 제외한 데이터
+        self.data = self.data / np.max(self.data)  # 0과 1 사이로 정규화
+
+        # ➎ 종가 데이터 정규화
+        self.label = data["Close"].values         
+        self.label = self.label / np.max(self.label)
+    def __len__(self):
+        return len(self.data) - 30 # 사용 가능한 배치 개수
+
+    def __getitem__(self, i):
+        data = self.data[i:i+30] # 입력 데이터 30일치 읽기
+        label = self.label[i+30] # 종가 데이터 30일치 읽기
+
+        return data, label
+        
+ class RNN(nn.Module):
+   def __init__(self):
+       super(RNN, self).__init__()
+
+       self.rnn = nn.RNN(input_size=3, hidden_size=8, num_layers=5,
+                         batch_first=True)  # RNN층의 정의  hidden size-> 시점에서의 차원
+                                            # input size 개장가, 최고가, 최저가
+                                            # num_layers -> 5개의 layer : 많으면 기울기 문제
+                                            # batch_first -> 배치 먼저 
+                                            # 입력텐서 -> [batch,30,3] , 시점의 수, input
+                                            # 출력 ->[batch, 30, 8] batch, 시점, hidden size
+
+       # 주가를 예측하는 MLP층 정의
+       self.fc1 = nn.Linear(in_features=240, out_features=64) #30 x 8 hidden size
+       self.fc2 = nn.Linear(in_features=64, out_features=1)
+
+       self.relu = nn.ReLU() # 활성화 함수 정의
+        
+   def forward(self, x, h0):
+       x, hn = self.rnn(x, h0)  # RNN층의 출력
+
+       # MLP층의 입력으로 사용될 수 있도록 모양 변경
+       x = torch.reshape(x, (x.shape[0], -1)) #x.shape[0]=32 -> 30x8
+
+       # MLP 층을 이용해 종가를 예측
+       x = self.fc1(x)
+       x = self.relu(x)
+       x = self.fc2(x)
+      
+       # 예측한 종가를 1차원 벡터로 표현
+       x = torch.flatten(x)
+
+       return x
+       
+model = RNN().to(device)  # 모델의 정의
+dataset = Netflix()  # 데이터셋의 정의
+
+loader = DataLoader(dataset, batch_size=32)  # 배치 크기를 32로 설정
+
+optim = torch.optim.Adam(params=model.parameters(), lr=0.0001)
+
+import tqdm
+for epoch in range(200):
+   iterator = tqdm.tqdm(loader)
+   for data, label in iterator:
+       optim.zero_grad()
+      
+      # 초기 은닉 상태      
+       h0 = torch.zeros(5, data.shape[0], 8).to(device)#nbh
+
+      # 모델의 예측값
+       pred = model(data.type(torch.FloatTensor).to(device), h0)
+
+       # 손실의 계산
+       loss = nn.MSELoss()(pred,
+                           label.type(torch.FloatTensor).to(device))
+       loss.backward()  # 오차 역전파
+       optim.step()  # 최적화 진행
+
+       iterator.set_description(f"epoch{epoch} loss:{loss.item()}")
+
+torch.save(model.state_dict(), "./rnn.pth")  # 모델 저장
+
+import matplotlib.pyplot as plt
+
+loader = DataLoader(dataset, batch_size=1)  # 예측값을 위한 데이터 로더
+
+preds = []  # 예측값들을 저장하는 리스트
+total_loss = 0
+
+with torch.no_grad():
+   # 모델의 가중치 불러오기
+   model.load_state_dict(torch.load("rnn.pth", map_location=device))
+
+   for data, label in loader:
+       h0 = torch.zeros(5, data.shape[0], 8).to(device)  # 초기 은닉상태 정의
+
+       # 모델의 예측값 출력
+       pred = model(data.type(torch.FloatTensor).to(device), h0)
+       preds.append(pred.item())  # 예측값을 리스트에 추가
+       loss = nn.MSELoss()(pred,
+                           label.type(torch.FloatTensor).to(device))  # 손실계산
+       total_loss += loss/len(loader)  # 손실의 평균치 계산
+
+total_loss.item()
+
+plt.plot(preds, label="prediction")
+plt.plot(dataset.label[30:], label="actual")
+plt.legend()
+plt.show()
+
+import string
+import os
+df = pd.read_csv("/content/drive/MyDrive/LSTM_data/ArticlesApril2017.csv")
+print(df.columns)
+
+import numpy as np
+import glob
+
+from torch.utils.data.dataset import Dataset
+
+
+class TextGeneration(Dataset):
+    def clean_text(self, txt):
+        # 모든 단어를 소문자로 바꾸고 특수문자를 제거
+        txt = "".join(v for v in txt if v not in string.punctuation).lower()
+        
+        return txt
+    def __init__(self):
+        all_headlines = []
+
+        # 모든 헤드라인의 텍스트를 불러옴
+        for filename in glob.glob("/content/drive/MyDrive/LSTM_data/*.csv"): # glob.glob -> 해당되는 모든 파일 리스트로 반환
+            if 'Articles' in filename:
+                article_df = pd.read_csv(filename)
+
+                # 데이터셋의 headline의 값을 all_headlines에 추가
+                all_headlines.extend(list(article_df.headline.values))
+                break  # 시간이 오래걸리니까 break
+
+        # headline 중 unknown 값은 제거
+        all_headlines = [h for h in all_headlines if h != "Unknown"]
+        
+        # 구두점 제거 및 전처리가 된 문장들을 리스트로 반환
+        self.corpus = [self.clean_text(x) for x in all_headlines]
+        self.BOW = {}
+
+        # 모든 문장의 단어를 추출해 고유번호 지정
+        for line in self.corpus:
+            for word in line.split():
+                if word not in self.BOW.keys():
+                    self.BOW[word] = len(self.BOW.keys())
+
+        # 모델의 입력으로 사용할 데이터
+        self.data = self.generate_sequence(self.corpus)
+    def generate_sequence(self, txt): # 텍스트를 시퀀스로 만들기
+        seq = []
+
+        for line in txt:
+          line = line.split()
+          line_bow = [self.BOW[word] for word in line]
+
+            # 단어 2개를 입력으로, 그다음 단어를 정답으로
+          data = [([line_bow[i], line_bow[i+1]], line_bow[i+2]) for i in range(len(line_bow)-2)]
+            
+          seq.extend(data)
+
+        return seq
+    def __len__(self):
+        return len(self.data)
+    def __getitem__(self, i):
+        data = np.array(self.data[i][0])  # 입력 데이터
+        label = np.array(self.data[i][1]).astype(np.float32)  # 출력 데이터
+
+        return data, label
+        
+class LSTM(nn.Module):
+   def __init__(self, num_embeddings):
+       super(LSTM, self).__init__()
+
+       # 밀집표현을 위한 임베딩층
+       
+       self.embed = nn.Embedding(
+           num_embeddings=num_embeddings, embedding_dim=16) #num_embeddings-> Bow 단어 개수, dim-> 차원
+           # num_embeddings를 embedding_dim으로 바꿔줘
+       
+       # LSTM을 5개층을 쌓음
+       self.lstm = nn.LSTM(
+           input_size=16, # 임베딩 결과가 16이니까
+           hidden_size=64, 
+           num_layers=5, 
+           batch_first=True)
+       
+       # 분류를 위한 MLP층
+       self.fc1 = nn.Linear(128, num_embeddings) # RNN에서와 마찬가지로 64*2
+       self.fc2 = nn.Linear(num_embeddings,num_embeddings) # 임베딩된 길이로 다시 반환
+
+       # 활성화 함수
+       self.relu = nn.ReLU()
+
+   def forward(self, x):
+       x = self.embed(x)
+
+       #  LSTM 모델의 예측값
+       x, _ = self.lstm(x)
+       x = torch.reshape(x, (x.shape[0], -1))
+       x = self.fc1(x)
+       x = self.relu(x)
+       x = self.fc2(x)
+
+       return x
+       
+import tqdm
+
+from torch.utils.data.dataloader import DataLoader
+from torch.optim.adam import Adam
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+dataset = TextGeneration()  # 데이터셋 정의
+model = LSTM(num_embeddings=len(dataset.BOW)).to(device)  # 모델 정의
+loader = DataLoader(dataset, batch_size=64)
+optim = Adam(model.parameters(), lr=0.001)
+
+for epoch in range(200):
+   iterator = tqdm.tqdm(loader)
+   for data, label in iterator:
+       # 기울기 초기화
+       optim.zero_grad()
+
+       # 모델의 예측값
+       pred = model(torch.tensor(data, dtype=torch.long).to(device))
+
+       # 정답 레이블은 long 텐서로 반환해야 함
+       loss = nn.CrossEntropyLoss()(
+           pred, torch.tensor(label, dtype=torch.long).to(device))
+       
+       # 오차 역전파
+       loss.backward()
+       optim.step()
+
+       iterator.set_description(f"epoch{epoch} loss:{loss.item()}")
+
+torch.save(model.state_dict(), "lstm.pth")
+
+def generate(model, BOW, string="finding an ", strlen=10):
+   device = "cuda" if torch.cuda.is_available() else "cpu"
+
+   print(f"input word: {string}")
+
+   with torch.no_grad():
+       for p in range(strlen):
+           # 입력 문장을 텐서로 변경
+           words = torch.tensor(
+               [BOW[w] for w in string.split()], dtype=torch.long).to(device)
+
+           # ❶
+           input_tensor = torch.unsqueeze(words[-2:], dim=0)
+           output = model(input_tensor)  # 모델을 이용해 예측
+           output_word = (torch.argmax(output).cpu().numpy())
+           string += list(BOW.keys())[output_word]  # 문장에 예측된 단어를 추가
+           string += " "
+
+   print(f"predicted sentence: {string}")
+
+model.load_state_dict(torch.load("lstm.pth", map_location=device))
+pred = generate(model, dataset.BOW)
