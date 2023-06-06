@@ -1,0 +1,544 @@
+#Three samples for two features node example
+class Two_Feature_Node:
+  def __init__(self):
+    self.w=tf.Variable([[0.1],[0.2]])
+    self.b=tf.Variable([[0.5]])
+
+  def __call__(self,x):
+    return self.get_output(x)
+
+  def get_output(self,x):
+    out=tf.matmul(x,self.w)
+    out=tf.add(out,self.b)
+    out=tf.math.sigmoid(out)
+    return out
+
+#Muiti Inuput Data(3 samples)
+x=tf.constant(][1.0,2.0],[2.0,3.0],[4.0,5.0]])
+two_features_node = Two_Features_Node()
+two_features_node(x).numpy()
+
+class Node:
+  def __init__(self):
+    self.w=tf.Variable(tf.random.normal([2,1]))
+    self.b_tf.Variable(tf.random.normal([1,1]))
+
+  def __call__(self,x):
+    return self.preds(x)
+
+  def preds(self,x):
+    #forward propagation
+    out=tf.matmul(x,self.w)
+    out=tf.add(out,self.b)
+    out=tf.nn.sigmoid(out)
+    return out
+
+  def loss(self, y_pred, y):
+    return tf.reduce_mean(tf.square(y_pred - y))
+
+  def train(self, inputs, outputs, learning_rate):
+    epochs = range(10000)
+    for i, epoch in enumerate(epochs):
+      with tf.GradientTape() as t:
+        current_loss = self.loss(self.pre  ds(inputs), outputs)
+        if i % 1000 = 0:
+          print(str(i))+"epoch, loss:" +str(current_loss.numpy()))
+        #back propagation
+        dW,db = t.gradient(curuent_loss, [self.w, self.b]) 
+        self.w.assign_sub(learning_rate * dW) #sub라는것은 뺀다는것임. 과거의 w값에서 ()를 뺀다
+        self.b.assign_sub(learning_rate * db)         
+
+rom __future__ import absolute_import, division, print_function, unicode_literals
+
+try:
+  %tensorflow_version 2.x
+except Exception:
+  pass
+
+import tensorflow as tf
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.models import Sequential
+# random seed for always same results
+tf.random.set_seed(678)
+
+import numpy as np
+print(tf.__version__)
+
+X = np.array([[0.,0.],[0.,1.],[1.,0.],[1.,1.]])
+y = np.array([0.,1.,1.,0.])
+
+model = Sequential()
+# first dense layer
+model.add(Dense(units=2,activation='sigmoid',input_dim=2))
+# second dense layer
+model.add(Dense(units=1,activation='sigmoid'))
+
+# loss function and optimization
+model.compile(loss='binary_crossentropy',optimizer='sgd',metrics=['accuracy'])
+
+# model summary
+print(model.summary())
+
+# Train (takes about 3 minutes from Colab)
+model.fit(X,y,epochs=50000,batch_size=4,verbose=0)
+
+# Test
+print(model.predict(X,batch_size=4))
+
+print("first layer weights: ",model.layers[0].get_weights()[0])
+print("first layer bias: ",model.layers[0].get_weights()[1])
+
+print("second layer weights: ",model.layers[1].get_weights()[0])
+print("second layer bias: ",model.layers[1].get_weights()[1])
+
+import math
+
+def sigmoid(x):
+  return 1 / (1 + math.exp(-x))
+
+def get_output(x):
+    layer0 = model.layers[0]
+    # first dense layer, first node output
+    layer0_weights, layer0_bias = layer0.get_weights()
+    layer0_node0_weights = np.transpose(layer0_weights)[0]
+    layer0_node0_bias = layer0_bias[0]
+    layer0_node0_output = sigmoid( np.dot( x, layer0_node0_weights ) + layer0_node0_bias )
+    # second dense layer, second node output
+    layer0_node1_weights = np.transpose(layer0_weights)[1]
+    layer0_node1_bias = layer0_bias[1]
+    layer0_node1_output = sigmoid( np.dot( x, layer0_node1_weights ) + layer0_node1_bias )
+    # second layer output
+    layer1 = model.layers[1]
+    layer1_weights, layer1_bias = layer1.get_weights()
+    layer1_output = sigmoid( np.dot( [layer0_node0_output, layer0_node1_output], layer1_weights ) + layer1_bias )
+
+    print(layer1_output)
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+try:
+  %tensorflow_version 2.x
+except Exception:
+  pass
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Dense
+from tensorflow.keras.models import Model
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+import numpy as np
+from IPython.display import Image
+
+# in order to always get the same result
+tf.random.set_seed(1)
+np.random.seed(1)
+
+Image(url= "https://raw.githubusercontent.com/captainchargers/deeplearning/master/img/autoencoder1.png", width=500, height=250)
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+
+# we will use train data for auto encoder training
+x_train = x_train.reshape(60000, 784)
+
+# select only 300 test data for visualization
+x_test = x_test[:300]
+y_test = y_test[:300]
+x_test = x_test.reshape(300, 784)
+
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+
+# normalize data
+gray_scale = 255
+x_train /= gray_scale
+x_test /= gray_scale
+Image(url= "https://raw.githubusercontent.com/captainchargers/deeplearning/master/img/autoencoder2.png", width=500, height=250)
+
+# MNIST input 28 rows * 28 columns = 784 pixels
+input_img = Input(shape=(784,))
+# encoder
+encoder1 = Dense(128, activation='sigmoid')(input_img)
+encoder2 = Dense(3, activation='sigmoid')(encoder1)
+# decoder
+decoder1 = Dense(128, activation='sigmoid')(encoder2)
+decoder2 = Dense(784, activation='sigmoid')(decoder1)
+
+# this model maps an input to its reconstruction
+autoencoder = Model(inputs=input_img, outputs=decoder2)
+autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
+autoencoder.fit(x_train, x_train,
+                epochs=5,
+                batch_size=32,
+                shuffle=True,
+                validation_data=(x_test, x_test))
+
+# create encoder model
+encoder = Model(inputs=input_img, outputs=encoder2)
+# create decoder model
+encoded_input = Input(shape=(3,))
+decoder_layer1 = autoencoder.layers[-2]
+decoder_layer2 = autoencoder.layers[-1]
+decoder = Model(inputs=encoded_input, outputs=decoder_layer2(decoder_layer1(encoded_input)))
+# get latent vector for visualization
+latent_vector = encoder.predict(x_test)
+# get decoder output to visualize reconstructed image
+reconstructed_imgs = decoder.predict(latent_vector)
+
+# visualize in 3D plot
+from pylab import rcParams
+rcParams['figure.figsize'] = 10, 8
+
+fig = plt.figure(1)
+ax = Axes3D(fig)
+
+xs = latent_vector[:, 0]
+ys = latent_vector[:, 1]
+zs = latent_vector[:, 2]
+
+color=['red','green','blue','lime','white','pink','aqua','violet','gold','coral']
+
+for x, y, z, label in zip(xs, ys, zs, y_test):
+    c = color[int(label)]
+    ax.text(x, y, z, label, backgroundcolor=c)
+    
+ax.set_xlim(xs.min(), xs.max())
+ax.set_ylim(ys.min(), ys.max())
+ax.set_zlim(zs.min(), zs.max())
+
+plt.show()
+
+n = 10  # how many digits we will display
+plt.figure(figsize=(20, 4))
+for i in range(n):
+    # display original
+    ax = plt.subplot(2, n, i + 1)
+    plt.imshow(x_test[i].reshape(28, 28))
+    plt.gray()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    # display reconstructed image
+    ax = plt.subplot(2, n, i + 1 + n)
+    plt.imshow(reconstructed_imgs[i].reshape(28, 28))
+    plt.gray()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+plt.show()
+
+import numpy as np
+# softmax practice
+def softmax(x):
+    return np.exp(x) / np.sum(np.exp(x), axis=0)
+scores = [1, 7, 2, 1, 1, 1, 1, 3, 1, 1]
+print(softmax(scores))
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+try:
+  %tensorflow_version 2.x
+except Exception:
+  pass
+
+import tensorflow as tf
+tf.random.set_seed(1)
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Flatten
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Activation
+
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+
+gray_scale = 255
+x_train /= gray_scale
+x_test /= gray_scale
+
+model = Sequential([
+    Flatten(input_shape=(28, 28)),    # reshape 28 row * 28 column data to 28*28 rows
+    Dense(256, activation='sigmoid'), # dense layer 1
+    Dense(128, activation='sigmoid'), # dense layer 2
+    Dense(10, activation='softmax'),  # dense layer 3
+])
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+model.fit(x_train, y_train, epochs=10, batch_size=2000, validation_split = 0.2)
+
+esults = model.evaluate(x_test,  y_test, verbose = 0)
+print('test loss, test acc:', results)
+
+from IPython.display import Image
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+try:
+  %tensorflow_version 2.x
+except Exception:
+  pass
+
+import tensorflow as tf
+
+tf.random.set_seed(1)
+import tensorflow as tf
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Flattenrnn
+from tensorflow.keras.layers import Conv2D, MaxPooling2D
+from tensorflow.keras import backend as K
+from tensorflow.keras.losses import categorical_crossentropy
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+
+# collect MNIST data
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+# sample to show gray scale values
+print(x_train[0][8])
+# sample to show labels for first train data to 10th train data
+print(y_train[0:9])
+
+print("test data has " + str(x_test.shape[0]) + " samples")
+print("every test data is " + str(x_test.shape[1]) 
+      + " * " + str(x_test.shape[2]) + " image")
+
+# reshape data
+import numpy as np
+x_train = np.reshape(x_train, (60000,28,28,1))
+x_test = np.reshape(x_test, (10000,28,28,1))
+
+print(x_train.shape)
+print(x_test.shape)
+# normalization
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+
+gray_scale = 255
+x_train /= gray_scale
+x_test /= gray_scale
+
+# change label to one hot encoding
+num_classes = 10
+y_train = tf.keras.utils.to_categorical(y_train, num_classes)
+y_test = tf.keras.utils.to_categorical(y_test, num_classes)
+
+Image(url= "https://raw.githubusercontent.com/captainchargers/deeplearning/master/img/practice_cnn.png", width=800, height=200)
+
+model = Sequential()
+model.add(Conv2D(16, kernel_size=(5, 5),
+                 activation='relu',
+                 input_shape=(28,28,1),padding='same'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Conv2D(32, kernel_size=(5, 5), activation='relu',padding='same'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Flatten())
+model.add(Dense(128, activation='relu'))
+model.add(Dense(num_classes, activation='softmax'))
+
+model.summary()
+
+              optimizer=Adam(),
+              metrics=['accuracy'])
+callbacks = [EarlyStopping(monitor='val_accuracy', patience=2, restore_best_weights=False),
+             ModelCheckpoint(filepath='best_model.h5', monitor='val_accuracy', save_best_only=True)]
+model.fit(x_train, y_train,
+          batch_size=500,
+          epochs=10,
+          verbose=1,
+          validation_split = 0.1, 
+          callbacks=callbacks)
+
+score = model.evaluate(x_test, y_test, verbose=0)
+print('Test loss:', score[0])
+print('Test accuracy:', score[1])
+
+from IPython.display import Image
+rom __future__ import absolute_import, division, print_function, unicode_literals
+
+try:
+  %tensorflow_version 2.x
+except Exception:
+  pass
+
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Dense, SimpleRNN, TimeDistributed
+from tensorflow.keras.models import Model, Sequential
+import numpy as np
+
+# input shape
+inputs = Input(shape=(1,2))
+# output shape, return state, use tanh as activation function
+output, state = SimpleRNN(3, return_state=True, activation='tanh')(inputs)
+model = Model(inputs=inputs, outputs=[output, state])
+
+# test input
+data = np.array([[ [1,2] ]])
+# print output, state
+output, state = model.predict(data)
+print("output: ",output)
+print("state: ",state)
+
+# weights for input
+model.layers[1].weights[0]
+
+# weights for state
+model.layers[1].weights[1]
+
+#bias
+model.layers[1].weights[2]
+
+John = [1,0,0]
+loves = [0,1,0]
+Jane = [0,0,1]
+
+X = np.array([
+    [ John, loves, Jane ],
+    [ Jane, loves, John ]
+]).astype(np.float32)
+
+S = [0] # subject
+V = [1] # verb
+O = [2] # object
+y = np.array([[S, V, O], [S, V, O]]).astype(np.float32)
+
+# input shape
+inputs = Input(shape=(3, 3))
+# output shape, return state, return sequence
+output, state = SimpleRNN(3, return_state=True, return_sequences=True)(inputs)
+model = Model(inputs=inputs, outputs=[output, state])
+
+# print output, state
+output, state = model.predict(X)
+
+print("John loves Jane: ",output[0])
+print("Jane loves John: ",output[1])
+
+# the state value is same with the last output
+print("John loves Jane: state: ",state[0])
+print("Jane loves John: state: ",state[1])
+
+model = Sequential()
+model.add(SimpleRNN(3, input_shape=(3, 3), return_sequences=True))
+model.add(TimeDistributed(Dense(3, activation="softmax")))
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam')
+print(model.summary())
+# train, takes 30sec, if you want to monitor progreses, change verbose=1
+model.fit(X, y, epochs=2000, verbose=0)
+
+# check the result
+
+# 0 : Subject
+# 1 : Verb
+# 2 : Object
+np.argmax(result, axis=1)
+
+from IPython.display import Image
+
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Dense, LSTM, Embedding
+from tensorflow.keras.models import Model
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.preprocessing.text import one_hot
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+import numpy as np
+import pandas as pd
+
+tf.random.set_seed(1)
+np.random.seed(1)
+
+movie_reviews = [
+         {'review': 'this is the best movie', 'sentiment': 'positive'},
+         {'review': 'i recommend you watch this movie', 'sentiment': 'positive'},
+         {'review': 'it was waste of money and time', 'sentiment': 'negative'},
+         {'review': 'the worst movie ever', 'sentiment': 'negative'}
+    ]
+df = pd.DataFrame(movie_reviews)
+
+def get_vocab2int(df):
+    d = {}
+    vocab = set()
+    df['review'].str.split().apply(vocab.update)
+    for idx, word in enumerate(vocab):
+        d[word] = idx
+    return d
+
+vocab2_int = get_vocab2int(df)
+vocab_size = len(vocab2_int)
+
+# encode words into integer
+reviews = df['review'].tolist()
+encoded_reviews = []
+for review in reviews:
+    tokens = review.split(" ")
+    review_encoding = []
+    for token in tokens:
+        review_encoding.append(vocab2_int[token])
+    encoded_reviews.append(review_encoding)
+
+    # encoded reviews
+print(encoded_reviews[0])
+print(encoded_reviews[1])
+print(encoded_reviews[2])
+print(encoded_reviews[3])
+
+ef get_max_length(df):
+    max_length = 0
+    for row in df['review']:
+        if len(row.split(" ")) > max_length:
+            max_length = len(row.split(" "))
+    return max_length
+
+# max_length is used for max sequence of input
+max_length = get_max_length(df)
+
+# if review is short, fill in zero padding and make all sentence length to be same as max_length
+padded_reviews_encoding = pad_sequences(encoded_reviews, maxlen=max_length, padding='post')
+
+sentiments = df['sentiment'].tolist()
+def sentiment_encode(sentiment):
+    if sentiment == 'positive':
+        return [1,0]
+    else:
+        return [0,1]
+
+# encoded sentiment
+encoded_sentiment = [sentiment_encode(sentiment) for sentiment in sentiments]
+
+ RNN model
+model = Sequential()
+model.add(Embedding(vocab_size, 3, input_length=max_length))
+model.add(SimpleRNN(32))
+model.add(Dense(2, activation='softmax'))
+
+model.compile(loss='categorical_crossentropy',
+              optimizer='adam',
+              metrics=['accuracy'])
+
+train_X = np.array(padded_reviews_encoding)
+train_Y = np.array(encoded_sentiment)
+
+print('Train...')
+model.fit(train_X, train_Y,epochs=50)
+
+core, acc = model.evaluate(train_X, train_Y, verbose=2)
+print('Test score:', score)
+print('Test accuracy:', acc)
+
+import tensorflow as tf
+import tensorflow_hub as hub
+import numpy as np
+
+ Load Pretrained Word2Vec
+embed = hub.load("https://tfhub.dev/google/Wiki-words-250-with-normalization/2")
+
+words = ["coffee", "cafe", "football", "soccer"]
+# Compute embeddings.
+embeddings = embed(words)
+
+print(embeddings.shape)
+print(embeddings[0])
+
+# Compute similarity matrix. Higher score indicates greater similarity.
+for i in range(len(words)):
+    for j in range(i,len(words)):
+        print("(",words[i], ",", words[j],")",np.inner(embeddings[i], embeddings[j]))

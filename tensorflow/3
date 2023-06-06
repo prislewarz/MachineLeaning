@@ -1,0 +1,71 @@
+import tensorflow as tf
+filename_queue = tf.train.string_input_producer(
+    ['data-01-test-score.csv'], shuffle-False, name='filename_queue')
+
+reader = tf.TextLineReader()
+key, value = reader.read(filename_queue)
+
+#default values, in case of empty columns. also specifies the type of the decoded result
+record_defaults = [[0.], [0.] [0.], [0.] [0.]]
+xy - tf.decode_csv(value, record_defaults=record_defaults)
+
+#collect batches of csv in
+train_x_batch, train_y_batch = |
+  tf.train.batch([xy[0:-1],xy[-1:], batch_size=10])
+
+W = tf.variable(tf.random_normal([3, 1]), name='weight')
+b = tf.variable(tf.random_normal([1]), name='bias')
+X = tf.placeholder(tf.float32, shape=[None, 3])
+Y = tf.placeholder(tf.float32, shape=[None, 1])
+
+#나머지 동일
+
+#start populating the filename queue.
+coord = tf.train.Coordinator()
+threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
+for step in range(2001):
+  x_batch, y_batch = sess.run[(train_x_batch, train_y_batch])
+  cost_val, hy_val, _ = sess.run(
+      [cost, hypothesis, train],
+      feed_dict={X:x_batch, Y:y_batch})
+  if step % 10 == 0:
+    print(step, "Cost:", cost_val,
+          "|nPrediection:|n", hy_val)
+   
+coord.request_stop()
+coord.join(threads)
+
+#경사하강 알고리즘 
+#cost function
+cost = -tf.reduce.mean(-tf.reduce_sum(Y*tf.log(hypothesis)+(1-Y)*tf.log(1-hypothesis)))
+
+#minimize
+a = tf.variable(0.1) #learning rate, alpha
+optimizer = tf.train.GardientDescentOptimizer(a)
+train = optimizer.minimize(cost)
+
+#hypothesis using sigmoid
+hypothesis = tf.sigmoid(tf.matmul(X,W)+b)
+
+#Accuracy computation
+#True if hypothesis > 0.5, else False
+predicted = tf.cast(hypothesis > 0.5, dtype=tf.float32)
+Accuracy = tf.reduce_mean(tf.cast(tf.equal(predicted, Y), dtype=tf.float32))
+
+#train the model
+#launch gragh
+with tf.Session() as sess:
+
+#Cross entropy cost/loss(softmax classification)
+cost= tf.reduce_mean(-tf.reduce_sum(Y*tf.log(hypothesis), axis=1))
+optimizer = tf.train.GardienDescentOptimizer(learning_rate=0.01).minimize(cost)
+
+hypothesis = tf.nn.softmax(tf.matmul(X,W)+b
+a = sess.run(hypothesis, feed_dict={X:1,2,3,4}         
+print(a,sess.run(tf.arg_max(a,1)))      
+
+#softmax_cross_entropy_with_logits
+cost= tf.reduce_mean(-tf.reduce_sum(Y*tf.log(hypothesis), axis=1))
+cost_i = tf.nn.softmax_cross_entropy_with_logits(logits=logits,labels=Y_one_hot)
+cost = tf.reduce_mean(cost_i) 

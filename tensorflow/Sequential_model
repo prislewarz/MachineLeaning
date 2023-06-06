@@ -1,0 +1,182 @@
+#시퀀셜 모델 만들기
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+#시퀀셜 모델 만드는법 1(콤마주의)
+model = Sequential([
+    Dense(units=128, activation='relu', input_shape=(784,)), #시그모이드는 더이상 사용되지 않는다
+    Dense(units=10, activation='softmax')  #소프트맥스 함수는 이진 분류 클래스 말고, 다중 분류 클래스에서 사용한다. 소프트맥스는 각 아웃풋 값을 더했을때 1로 만드는(노멀라이즈하는) 함수이다.
+])
+
+#시퀀셜 모델 만드는법 2(add메소드 활용)
+model = Sequential()
+model.add(Dense(units=128, activation='relu', input_shape=(784,))
+model.add(Dense(units=10, activation='softmax'))
+
+#베이스 모델에 flatten layer(2차원 모델을 1차원 모델로) 추가, 이름 추가
+from tensorflow.keras.layers import Flatten
+
+model=Sequential([
+    Flatten(input_shape=(28,28, name='A')), #28x28=784
+    Dense(units=128, activation='relu', name='B'),
+    Dense(units=10, activation='softmax',name='C' )
+])
+
+#모델 컴파일(원시코드에서 목적코드로 옮기는 과정) 방법 1(함수형태)
+model.complie(optimizer='adam', # Adam은 최적화 알고리즘 중 하나로 성능이 좋아 많이 쓰인다고 함.
+              loss='sparse_caterorical_crossentropy', # label 출력 시 1,2,3
+              loss='caterorical_crossentropy'  #label 출력 시 [1.0.0], [0.1.0], [0,0,1]
+              metrics=['accuracy'])
+
+#모델 컴파일 방법 2(클래스 형태)
+model.complie(optimizer=tf.keras.optimizers.Adam(),
+              loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+              metrics=tf.keras.metrics.Accurasy())
+                                                     
+                                                     
+from IPython.utils.sysinfo import platform
+#손글씨 데이터셋 mnist로 훈련(학습)
+(x_train, y_train), (x_test, y_test)=tf.keras.datasets.mnist.load_data()
+
+
+#손글씨 출력
+import matplotlib.pyplot as platform
+plt.imshow(x_train[0]) #흑백으로 보고싶다면 cmap='gray'추가
+print("label:",y_train[0])
+
+#데이터 값 출력
+import numpy as np
+np.set_printoptions(linewidth=120)
+print(x_train[0])
+plt.imshow(x_train[0])
+
+#verbose=0: silent모드(출력x), =1: 진행 표시 출력, =2: 진행 표시 없이 출력
+
+#훈련(학습)
+history=model.fit(x_train, y_train, epochs=5, batch_size=64, verbose=1)
+
+#학습 정확도
+plt.plot(history.history['accuracy'])
+plt.xlabel('epochs') #x축
+plt.ylabel('accuracy') #y축
+
+#검증방법 1: validation_split 활용
+model.fit(X,y, validation_split=0.2, epochs-5) #20%만큼 validation 데이터로 가져감(분할)
+#검증방법 2: 사이킷런 라이브러리(train_test_splfrom sklearn.model_selection import trian_test_split
+x_train, x_val, y_train, y_val = train_test_split(X,y,test_size=0.2)it) 활용
+
+model.fit(x_train, y_train, validation_data=(x_val,y_val), epochs=5)
+
+#위 검증방법 2를 사용해 작성한 훈련 코드
+
+#1. 라이브러리 불러오기
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten
+
+#2. Mnist데이터셋
+mnist = tf.keras.datasets.mnist
+(X,y),(x_test, y_test)=mnist.load_data()
+
+#3. 사이킷런 라이브러리(train_test_split) 활용
+from sklearn.model_selection import trian_test_split
+x_train, x_val, y_train, y_val = train_test_split(X,y,test_size=0.2)
+
+#4. 시퀀셜 모델 만들기
+model=Sequential([
+    Flatten(input_shape=(28,28)), 
+    Dense(units=128, activation='relu'),
+    Dense(units=10, activation='softmax')
+])
+
+#5. 모델 컴파일
+model.complie(optimizer='adam', 
+              loss='sparse_caterorical_crossentropy', 
+              metrics=['accuracy'])
+
+#6. 훈련(학습) validation_data
+model.fit(x_train, y_train, validation_data=(x_val,y_val), epochs=5, batch_size=64)
+
+#7. 정확도 평가
+loss, accuracy = model.evaluate(x_test, y_test)
+print("Test 데이터 정확도:", accuracy)
+
+#8. 예측결과 확인
+predictions=model.predict(x_test)
+import numpy as np
+np.set_printoptions(formatter={'float_kind':lambda x:"{0:0.2f}",format(x)}) #결과가 지저분하게 나오니 깔끔하게 나오도록 출력방식 변경. 소수점 두자리까지
+predictions[0] #첫번째 데이터 예측 결과값
+import matplotlib.pyplot as plt
+plt.figure(figsize=(12,2))
+plt.plot(predictions[0],'o') #첫번째 데이터 예측 결과값 그래프로 표시
+plt.imshow(x_test[0]) #첫번째 데이터 손글씨
+
+#조기종료
+early_stopping=EarlyStopping(monitor='val_loss',patience=3, min_delta=0.05)
+history=model.fit(X,y,validation_split=0.2,epochs=30,batch_size=64, callbacks=[early_stopping])
+#min_delta 기준 미달 시 조기 종료(지정 안하면 디폴트는 0.00000001이라도 개선되면 종료 안됨)
+#3epoch동안 손실이 0.05이상 개선되지 않을 경우 훈련 중지
+#callbacks는 학습 실행 시 손실값 등을 모니터링하고 손실에 따라 일부 작업을 수행
+
+#배치 정규화는 레이어와 레이어(층과 층) 사이에 넣어 수행한다()
+#+드롭아웃 : 플립커넥티드 레이어(완전연결 레이어)를 임의로 생략해서 정확도를 높임
+
+#기존 모델
+model=Sequential([
+    Flatten(input_shape=(28,28, name='A')), #28x28=784
+    Dense(units=128, activation='relu', name='B'),
+    Dense(units=10, activation='softmax',name='C' )
+
+#배치정규화와 드롭아웃이 이루어진 모델
+from tensorflow.keras.layers import Dense,Flatten,BatchNormalization,Dropout
+
+model=Sequential([
+    Flatten(input_shape=(28,28, name='A')), #28x28=784
+    Dropout(0.2), #20%만큼 생략
+    BatchNormalization(),
+    Dense(units=128, activation='relu', name='B'),
+    Dropout(0.2),
+    BatchNormalization(),
+    Dense(units=10, activation='softmax',name='C' )
+    
+ #모델 저장 1. 가중치 값만 저장
+from tensorflow.keras.callbacks import ModelCheckpoint
+cp_path='model_save/cp.ckpt'
+checkout=ModelCheck(filepath=cp_path,
+                    save_best_only=True,
+                    save_weights_only=True,
+                    verbose=1) #모든 가중치값이 아닌 가장 좋은 가중치 값만 저장
+def load_model():
+  model=Sequential([
+    Flatten(input_shape=(28,28, name='A')), #28x28=784
+    Dense(units=128, activation='relu', name='B'),
+    Dense(units=10, activation='softmax',name='C' )
+  ])
+  model.complie(optimizer='adam', 
+              loss='sparse_caterorical_crossentropy', 
+              metrics=['accuracy'])
+  return model #자주 컴파일해줘야 하기 때문에 아예 함수형태로 작성
+
+model = load_model()
+history=model.fit(X,y,validation_split=0.2,epochs=30,batch_size=64, callbacks=[checkpoint])
+
+#저장된 모델 가중치 불러오기
+model.load_weights(cp_path)
+model.evaluate(x_test, y_test)
+
+#모델 저장 2: 모델 전체 저장(HDP5) - 방법1
+from tensorflow.keras.callbacks import ModelCheckpoint
+model = load_model()
+checkpoint=ModelCheckpoint('model_save.h5') #save_weights_only=Faulse
+model.fit(x_train,y_train,epochs=3,callbacks=[checkpoint])
+
+#방법 2
+model=load_model()
+model.fit(x_train,y_train,epochs=3)
+model.save('model_save2.h5')
+
+#모델 불러오기
+from tensorflow.keras.models import load_model
+model = load_model('model_save2.h5')
+
