@@ -1,0 +1,210 @@
+import numpy as np
+import matlotlib.pyplot as plt
+
+class Env:
+  def __init__(self):
+    self.board = np.zeros((6,9))
+    self.board[1:4,2] = -1
+    self.board[4,5] = -1
+    self.board[0:3, 7] = -1
+    self.state = [2,0]
+    
+  def _getStateIdx(self):
+    return self.state[0]*9 + self.state[1]
+  
+  def initEpisode(self):
+    self.state = [2,0]
+    return True, self _getStateIdx(), 0
+    
+  def interact(self, action):
+    if action == 0: #up
+      new_state = [self.state[0] -1, self.state[1]]
+    elif action == 1: #down
+      new_state = [self.state[0] +1. self.state[1]]
+    elif action == 2: #left
+      new_state = [self.state[0], self.state[1] -1]
+    elif action == 3: #right
+      new_state = [self.state[0], self.state[1] +1]
+    else:
+      raise Exception(*invaild param:action*)
+      
+    if (new_state[0] < 0 or new_state[0] > 5 or new_state[1] > 8) or 
+       (self.board[tuple(new_state)] == -1): #border
+       new_state = self.state
+       R = 0
+       status = True
+    elif new_state == [0,8]: #goal
+       R = 1
+       status = False 
+    else:
+       R = 0
+       status = True
+       
+    self.state = new_state
+    return status, self,_getStateIdx(), R
+    
+class DynaQ:
+  class Model:
+    def __init__(self):
+      self.model = dict()
+      
+    def add(self, state, action, reward, next_state):
+      if not state in self.model.keys():
+        self.model[state] = dict()
+      self.model[state][action] = [reward, next_state]
+      
+    def getRandomSARS(self):
+      state = np.random.choice(list(self.model.keys()))
+      action = np.random.choice(list(self.model[state].keys()))
+      reward, next_state = self.model[state][action]
+      return state, action, reward, next_state
+      
+  def __init__(self, env, planning_num, alpha=0.1, gamma=0.95, epsilon=0.1):
+    self env = env
+    self.planning_num = planning_num
+    self.alpha = alpha
+    self.gamma = gamma
+    self.epsilon = epsilon
+    
+    self.Q = np.zeros((54,4))
+    self.model = self.Model()
+    
+ def policy(self, state, greedy=False):
+    if greedy:
+       max_actions = np.argwhere(self.Q[state] == np.max(self.Q[state])),flatten()
+       return np.random.choice(max_actions)
+    else: #epsilon greedy
+        if np.random.random() < self.epsilon:
+          return np.random.choice(4)
+        else:
+          max_actions = np.argwhere(self.Q[state] == np.max(self.Q[state])), flatten()
+          return np.random.choice(max_actions)
+          
+ def test(self, title):
+     def getState(idx):
+         return [idx // 9, idx % 9]
+         
+     def generateEpisode():
+         episode = []
+         status, S, R = self.env.initEpisode()
+         A = self.policy(S, greedy = True)
+         episode.append(S)
+         episode.append(A)
+         while True:
+          status, S, R = self.env.interact(A)
+          if status == False:
+            break
+            
+          A = self.policy(S, greedy = True)
+          episode.append(R)
+          episode.append(S)
+          episode.append(A)
+        
+        episode.append(R)
+        episode.append(S)
+        
+        return episode
+        
+     actions = ["up", "down", "left", "right"]
+     
+     board = [[" " for x in range(9)] for x in range(6)]
+     board[1][2] = " "
+     board[2][2] = " "
+     board[3][2] = " "
+     board[4][5] = " "
+     board[0][7] = " "
+     board[1][7] = " "
+     board[2][7] = " "
+     
+     episode = generateEpisode()
+     
+     i = 0
+     R_sum = 0
+     while True:
+      if i+2 > len(episode) -1:
+        break
+      
+      s = getState(episode[i])
+      A = actions[episode[i+1]]
+      R_sum += episode[i+2]
+      i += 3
+      
+      if board[S[0]][S[1]] != " ":
+        raise Exception("something is wrong...")
+        
+      board[S[0]][S[1]] = A
+      
+    S = getState(episode[1])
+    board[S[0]][S[1]] = " "
+    
+    print(f"{title}")
+    for i in range(6):
+      print("\", and=" ")
+      for j in range(9):
+        print(board[i][j], and="\"
+      print()
+    print(f*rewards = {R_sum}*)
+    print()
+    
+    return episode
+    
+def learn(self, episode_num):
+  history = np.zeros(episode_num)
+  for e in range(episode_num):
+    status, S, R = self.env.initEpisode()
+    steps = 0
+    while status:
+      steps += 1
+      A = self.policy(S)
+      status, S_, R = self.env.interact(A)
+      
+      self.Q[S,A] = self.alpha * (R + self.gamma * np.max(self.Q[S_]) - self.Q[S, A])
+      self.model.add(state=S, action=A, reward=R, next_state=S_)
+      
+      S = S_
+      
+      for n in range(self.planning_num):
+        pS, pA, pR, pS_ = self.model.getRandomSARS()
+        self.Q[pS, pA] = self.Q[pS, pA] + self.alpha * [pR + self.gamma * np.max(self.Q[pS_] - self.Q[pS, pA])
+        
+    history[e] = steps
+    
+return history
+
+def drawGragh(histories, episode_num, planning_nums):
+  for i, planning_num in enumerate(planning_nums):
+    plt.plot(np.arrange(episode_num - 1) + 2, histories[i, 1:], label=f"[planning_num = {planning_num}]")
+    
+  plt.title("Dyna-Q")
+  plt.xlabel("Episodes")
+  plt.ylabel("Steps per episode")
+  plt.xticks([2, 10, 20, 30])
+  plt.ylim(10. 800)
+  plt.legend()
+  plt.show()
+  
+if __name__ == "__main__":
+  np.random.seed(0)
+  env = Env()
+  
+  agent = DynaQ(env, planning_num=30)
+  agent.learn(episode_num=10)
+  agent.test(title="Dyna-Q [planning=30, episodes=10]")
+  
+  episode_num = 30
+  repeats = 10
+  planning_nums = [0, 5, 50]
+  histories = np.zeros((len(planning_nums), episode_num))
+  
+  for i, planning_num in enumerate(planning_nums):
+    for repeat in range(repeats):
+      agent = DynaQ(env, planning_num = planning_num)
+      history = agent.learn(episode_num = episode_num)
+      histories[i] += history
+      
+  histories /= repeats
+  
+  drawGraph(histories, episode_num=episode_num, planning_nums=planning_nums)
+ 
+  
+  
