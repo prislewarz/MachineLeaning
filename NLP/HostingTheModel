@@ -1,0 +1,111 @@
+# Set the server hostname and check it - you should get a message that "Triton Server is ready!"
+tritonServerHostName = "triton"
+!./utilities/wait_for_triton_server.sh {tritonServerHostName}
+
+# Load the previous configuration.
+modelVersion="1"
+precision="fp32"
+batchSize="1"
+maxLatency="500"
+maxClientThreads="10"
+maxConcurrency="2"
+dockerBridge="host"
+resultsFolderName="1"
+profilingData="utilities/profiling_data_int64"
+
+# Update configuration parameters and run profiler.
+modelName = "bertQA-onnx-trt-fp16"
+maxConcurrency= "10"
+batchSize="1"
+print("Running: " + modelName)
+!bash ./utilities/run_perf_client_local.sh \
+                    {modelName} \
+                    {modelVersion} \
+                    {precision} \
+                    {batchSize} \
+                    {maxLatency} \
+                    {maxClientThreads} \
+                    {maxConcurrency} \
+                    {tritonServerHostName} \
+                    {dockerBridge} \
+                    {resultsFolderName} \
+                    {profilingData}
+                    
+modelName = "bertQA-onnx-conexec"
+exportFormat = "onnx"
+!python ./deployer/deployer.py \
+    --{exportFormat} \
+    --save-dir ./candidatemodels \
+    --triton-model-name {modelName} \
+    --triton-model-version 1 \
+    --triton-max-batch-size 8 \
+    --triton-dyn-batching-delay 0 \
+    --triton-engine-count 1 \
+    -- --checkpoint ./data/bert_qa.pt \
+    --config_file ./bert_config.json \
+    --vocab_file ./vocab \
+    --predict_file ./squad/v1.1/dev-v1.1.json \
+    --do_lower_case \
+    --batch_size=8 
+    
+!ls -alh ./candidatemodels/bertQA-onnx-conexec
+!mv ./candidatemodels/bertQA-onnx-conexec model_repository/
+maxConcurrency= "10"
+batchSize="1"
+print("Running: " + modelName)
+!bash ./utilities/run_perf_client_local.sh \
+                    {modelName} \
+                    {modelVersion} \
+                    {precision} \
+                    {batchSize} \
+                    {maxLatency} \
+                    {maxClientThreads} \
+                    {maxConcurrency} \
+                    {tritonServerHostName} \
+                    {dockerBridge} \
+                    {resultsFolderName} \
+                    {profilingData}
+                    
+# Remove models from the inference server by removing them from the model_repository
+!mv /dli/task/model_repository/bertQA-onnx /dli/task/candidatemodels/
+!mv /dli/task/model_repository/bertQA-onnx-conexec /dli/task/candidatemodels/
+!mv /dli/task/model_repository/bertQA-onnx-trt-fp16 /dli/task/candidatemodels/
+
+# List remaining models on the inference server
+!ls /dli/task/model_repository
+modelName = "bertQA-onnx-trt-dynbatch"
+exportFormat = "onnx"
+
+!python ./deployer/deployer.py \
+    --{exportFormat} \
+    --save-dir ./candidatemodels \
+    --triton-model-name {modelName} \
+    --triton-model-version 1 \
+    --triton-max-batch-size 8 \
+    --triton-dyn-batching-delay 0 \
+    --triton-engine-count 1 \
+    -- --checkpoint ./data/bert_qa.pt \
+    --config_file ./bert_config.json \
+    --vocab_file ./vocab \
+    --predict_file ./squad/v1.1/dev-v1.1.json \
+    --do_lower_case \
+    --batch_size=8
+    
+modelName = "bertQA-onnx-trt-dynbatch"
+maxConcurency= "10"
+batchSize="1"
+print("Running: "+modelName)
+!bash ./utilities/run_perf_client_local.sh \
+                    {modelName} \
+                    {modelVersion} \
+                    {precision} \
+                    {batchSize} \
+                    {maxLatency} \
+                    {maxClientThreads} \
+                    {maxConcurency} \
+                    {tritonServerHostName} \
+                    {dockerBridge} \
+                    {resultsFolderName} \
+                    {profilingData}
+                    
+                    

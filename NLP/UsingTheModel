@@ -1,0 +1,91 @@
+import os
+import json
+import argparse
+import numpy as np
+import tritonhttpclient
+
+try:
+    triton_client = tritonhttpclient.InferenceServerClient(url="triton:8000", verbose=True)
+except Exception as e:
+    print("channel creation failed: " + str(e))
+    
+modelName = "bertQA-torchscript"
+print(triton_client.is_server_live())
+print(triton_client.is_server_ready())
+print(triton_client.is_model_ready(modelName,"1"))
+
+triton_client.get_server_metadata()
+triton_client.get_model_metadata(modelName)
+
+question = "Most antibiotics target bacteria and don't affect what class of organisms? "
+context = "Within the genitourinary and gastrointestinal tracts, commensal flora serve as biological barriers by " +\
+        "competing with pathogenic bacteria for food and space and, in some cases, by changing the conditions in " +\
+        "their environment, such as pH or available iron. This reduces the probability that pathogens will " +\
+        "reach sufficient numbers to cause illness. However, since most antibiotics non-specifically target bacteria" +\
+        "and do not affect fungi, oral antibiotics can lead to an overgrowth of fungi and cause conditions such as a" +\
+        "vaginal candidiasis (a yeast infection). There is good evidence that re-introduction of probiotic flora, such " +\
+        "as pure cultures of the lactobacilli normally found in unpasteurized yogurt, helps restore a healthy balance of" +\
+        "microbial populations in intestinal infections in children and encouraging preliminary data in studies on bacterial " +\
+        "gastroenteritis, inflammatory bowel diseases, urinary tract infection and post-surgical infections. " 
+        
+import sys
+sys.path.insert(0,'/dli/task/client')
+from tokenization import BertTokenizer
+from inference import preprocess_tokenized_text,parse_answer
+
+tokenizer = BertTokenizer("/dli/task/vocab", do_lower_case=True, max_len=512) 
+doc_tokens = context.split()
+query_tokens = tokenizer.tokenize(question)
+
+tensors_for_inference, tokens_for_postprocessing = preprocess_tokenized_text(doc_tokens, 
+                                    query_tokens, 
+                                    tokenizer, 
+                                    max_seq_length=384, 
+                                    max_query_length=64)
+
+dtype = np.int64
+input_ids = np.array(tensors_for_inference.input_ids, dtype=dtype)[None,...] # make bs=1
+segment_ids = np.array(tensors_for_inference.segment_ids, dtype=dtype)[None,...] # make bs=1
+input_mask = np.array(tensors_for_inference.input_mask, dtype=dtype)[None,...] # make bs=1
+
+nputs = []
+inputs.append(tritonhttpclient.InferInput('input__0', [1, len(input_ids[0])], "INT64"))
+inputs.append(tritonhttpclient.InferInput('input__1', [1, len(segment_ids[0])], "INT64"))
+inputs.append(tritonhttpclient.InferInput('input__2', [1, len(input_mask[0])], "INT64"))
+
+
+inputs[0].set_data_from_numpy(input_ids, binary_data=False)
+inputs[1].set_data_from_numpy(segment_ids, binary_data=False)
+inputs[2].set_data_from_numpy(input_mask, binary_data=False)
+
+inputs[0]._get_tensor()
+outputs = []
+outputs.append(
+        tritonhttpclient.InferRequestedOutput('output__0', binary_data=False))
+outputs.append(
+        tritonhttpclient.InferRequestedOutput('output__1', binary_data=False))
+        
+results = triton_client.infer(modelName,
+                                  inputs,
+                                  outputs=outputs)
+                                  
+results
+outputs
+
+# Validate the results by comparing with precomputed values.
+output0_data = results.as_numpy('output__0')
+output1_data = results.as_numpy('output__1')
+
+output0_data
+
+start_logits = output0_data[0].tolist()
+end_logits = output1_data[0].tolist()
+
+answer, answers = parse_answer(doc_tokens, tokens_for_postprocessing, 
+                                 start_logits, end_logits)
+
+# print result
+print()
+print(answer)
+print()
+print(json.dumps(answers, indent=4))

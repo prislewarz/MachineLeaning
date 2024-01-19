@@ -1,0 +1,105 @@
+# Import nemo nlp collection 
+from nemo.collections import nlp as nemo_nlp
+
+# Import BERT
+from nemo.collections.nlp.models import BERTLMModel
+
+# Check the list of pre-trained BERT language models
+BERTLMModel.list_available_models()
+
+# Download the pretrained BERT-based model
+pretrained_model_name="bertbaseuncased"
+model = BERTLMModel.from_pretrained(pretrained_model_name)
+
+# Check the model architecture
+model
+
+# number of weights
+print(" Number of weights : ",model.num_weights)
+
+# Check available tokenizers
+nemo_nlp.modules.get_tokenizer_list()
+
+# Get the bert-base-uncased tokenizer 
+tokenizer_uncased = nemo_nlp.modules.get_tokenizer(tokenizer_name="bert-base-uncased")
+
+# Check the vocabulary size
+print(" The vocabulary size: ", tokenizer_uncased.vocab_size)
+
+SAMPLES_TEXT_1 = "Hello, my name is John. I live in Santa Clara."
+output_uncased=tokenizer_uncased.text_to_tokens(SAMPLES_TEXT_1)
+print("Input sentence: ", SAMPLES_TEXT_1)
+print("Tokenized sentence: ", output_uncased)
+
+# Get the bert-base-cased tokenizer 
+tokenizer_cased = nemo_nlp.modules.get_tokenizer(tokenizer_name="bert-base-cased")
+
+# Encode the text 
+output_cased=tokenizer_cased.text_to_tokens(SAMPLES_TEXT_1)
+print("Input sentence: ", SAMPLES_TEXT_1)
+print("Tokenized sentence: ", output_cased)
+
+# Index of the tokens Hello and hello using bert-base-cased tokenizer
+print("Index of Hello: ", tokenizer_cased.text_to_ids("Hello"))
+print("Index of hello: ",tokenizer_cased.text_to_ids("hello"))
+
+# Example of bert-base-cased tokenizer in a sentence
+print("Input sentence: ", SAMPLES_TEXT_1)
+print("Tokenized sentence: ", output_cased)
+print("Tokenized sentence: ", tokenizer_cased.text_to_ids(SAMPLES_TEXT_1))
+
+#solution
+# Index of the tokens Hello and hello using bert-base-uncased tokenizer
+print("Index of Hello: ", tokenizer_uncased.text_to_ids("Hello"))
+print("Index of hello: ",tokenizer_uncased.text_to_ids("hello"))
+
+# Show the tokenization for the sentence
+print("Input sentence: ", TEXT)
+output_uncased=tokenizer_uncased.ids_to_tokens(tokenizer_uncased.tokenizer(TEXT).input_ids)
+print("Tokenized sentence: ", output_uncased)
+
+# "mouse" tokens positions in the TEXT input
+mouse_computer_1=6
+mouse_animal=14
+mouse_computer_2=26
+
+# Get the embeddings for the pretrained model
+hidden_states = model.bert_model(input_ids=input_sentence, token_type_ids=None, attention_mask=attention_mask)
+
+from numpy import dot
+from numpy.linalg import norm
+
+def similarity_cosine(x,y):
+    return dot(x,y)/(norm(x)*norm(y))
+    
+from sklearn.manifold import TSNE
+import numpy as np
+
+X=hidden_states.cpu().detach().numpy()
+X_embedded = TSNE(n_components=2,metric='euclidean',  init='random', perplexity=7).fit_transform(X[0])
+Tokens=tokenizer_uncased.ids_to_tokens(tokenizer_uncased.tokenizer(TEXT).input_ids)
+
+# Annotate the different mouse tokens
+Tokens[mouse_computer_1]="mouse_computer_1"
+Tokens[mouse_animal]="mouse_animal"
+Tokens[mouse_computer_2]="mouse_computer_2"
+
+%matplotlib inline
+import matplotlib.pyplot as plt
+import numpy as np
+plt.figure(figsize=(15,10))
+plt.plot(X_embedded[:,0],X_embedded[:,1], '.', color='black')
+plt.plot([X_embedded[6,0],X_embedded[14,0]],[X_embedded[6,1],X_embedded[14,1]],color='red')
+plt.plot([X_embedded[6,0],X_embedded[26,0]],[X_embedded[6,1],X_embedded[26,1]],color='green')
+
+for i, txt in enumerate(Tokens):
+    plt.annotate(txt, (X_embedded[i,0], X_embedded[i,1]), color='blue')
+    
+from visualization import head, KVQ
+sentence_a = "The European Union (EU) is an economic and political union of 27 countries."
+sentence_b = "The European Economic Area (EEA) The EEA includes EU countries and also Iceland, Liechtenstein and Norway."
+
+# Run the head attention visualization tool - this may take a few minutes
+head.berthead(sentence_a,sentence_b)
+# Run the KVQ matrix visualization tool - this may take a few minutes
+KVQ.bertKVQ(sentence_a, sentence_b)

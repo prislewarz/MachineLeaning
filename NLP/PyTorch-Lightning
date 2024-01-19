@@ -1,0 +1,121 @@
+## 2.3.1 스크립트 주요 특징
+[text_classification_with_bert.py](nemo/examples/nlp/text_classification/text_classification_with_bert.py) 스크립트를 열면 정확이 어떤 일들이 진행되고 있는 지를 확인할 수 있습니다. 
+
+다음은 로깅 및 Initial comments가 제거된 축약된 버전입니다.:
+
+```python
+import pytorch_lightning as pl
+from omegaconf import DictConfig
+
+from nemo.collections.nlp.models.text_classification import TextClassificationModel
+from nemo.collections.nlp.parts.nlp_overrides import NLPDDPPlugin
+from nemo.core.config import hydra_runner
+from nemo.utils.exp_manager import exp_manager
+
+
+@hydra_runner(config_path="conf", config_name="text_classification_config")
+def main(cfg: DictConfig) -> None:
+    trainer = pl.Trainer(plugins=[NLPDDPPlugin()], **cfg.trainer)
+    exp_manager(trainer, cfg.get("exp_manager", None))
+
+    if not cfg.model.train_ds.file_path:
+        raise ValueError("'train_ds.file_path' need to be set for the training!")
+
+    model = TextClassificationModel(cfg.model, trainer=trainer)
+    trainer.fit(model)
+
+    if cfg.model.nemo_path:
+        # '.nemo' file contains the last checkpoint and the params to initialize the model
+        model.save_to(cfg.model.nemo_path)
+
+    # We evaluate the trained model on the test set if test_ds is set in the config file
+    if cfg.model.test_ds.file_path:
+        trainer.test(model=model, ckpt_path=None, verbose=False)
+
+    # perform inference on a list of queries.
+    if "infer_samples" in cfg.model and cfg.model.infer_samples:       
+        # max_seq_length=512 is the maximum length BERT supports.
+        results = model.classifytext(queries=cfg.model.infer_samples, batch_size=16, max_seq_length=512)
+
+if __name__ == '__main__':
+    main()
+```
+Hydra 데코레이터 `@hydra_runner`는 환경 구성 파일을 연결하고 커맨드 라인의 재정의 메커니즘을 제공합니다.
+
+환경 구성이 설정 되면, 주요 단계는 다음과 같습니다.:
+1. 다음과 같이 트레이너를 인스턴스화 합니다. `trainer = pl.Trainer(plugins=[NLPDDPPlugin()], **cfg.trainer)`
+1. 모델을 다음과 같이 인스턴스화 합니다. `model = TextClassificationModel(cfg.model, trainer=trainer)`
+1. 모델을 다음과 함께 트레이닝 합니다. `trainer.fit(model)`
+
+선택적인 추론과 평가를 위한 추가적인 단계는 다음과 같습니다.:
+* 다음과 함께 평가를 진행합니다. `trainer.test(model=model, ckpt_path=None, verbose=False)`
+* 다음과 함께 추론을 진행합니다. `results = model.classifytext(queries=cfg.model.infer_samples, batch_size=16, max_seq_length=512)`
+
+# Restart the kernel
+import IPython
+app = IPython.Application.instance()
+app.kernel.do_shutdown(True)
+
+from nemo.collections import nlp as nemo_nlp
+from nemo.utils.exp_manager import exp_manager
+
+import torch
+import pytorch_lightning as pl
+from omegaconf import OmegaConf
+
+# Instantiate the OmegaConf object by loading the config file
+TC_DIR = "/dli/task/nemo/examples/nlp/text_classification"
+CONFIG_FILE = "text_classification_config.yaml"
+config = OmegaConf.load(TC_DIR + "/conf/" + CONFIG_FILE)
+
+# set the values we want to change
+NUM_CLASSES = 3
+MAX_SEQ_LENGTH = 128
+PATH_TO_TRAIN_FILE = "/dli/task/data/NCBI_tc-3/train_nemo_format.tsv"
+PATH_TO_VAL_FILE = "/dli/task/data/NCBI_tc-3/dev_nemo_format.tsv"
+PATH_TO_TEST_FILE = "/dli/task/data/NCBI_tc-3/test_nemo_format.tsv"
+# disease domain inference sample answers should be 0, 1, 2 
+INFER_SAMPLES = ["Germline mutations in BRCA1 are responsible for most cases of inherited breast and ovarian cancer ",
+        "The first predictive testing for Huntington disease  was based on analysis of linked polymorphic DNA markers to estimate the likelihood of inheriting the mutation for HD",
+        "Further studies suggested that low dilutions of C5D serum contain a factor or factors interfering at some step in the hemolytic assay of C5 rather than a true C5 inhibitor or inactivator"
+        ]
+MAX_EPOCHS = 5
+AMP_LEVEL = 'O1'
+PRECISION = 16
+LR = 5.0e-05
+
+# set the config values using omegaconf
+config.model.dataset.num_classes = NUM_CLASSES
+config.model.dataset.max_seq_length = MAX_SEQ_LENGTH
+config.model.train_ds.file_path = PATH_TO_TRAIN_FILE
+config.model.validation_ds.file_path = PATH_TO_VAL_FILE
+config.model.test_ds.file_path = PATH_TO_TEST_FILE
+config.model.infer_samples = INFER_SAMPLES
+config.trainer.max_epochs = MAX_EPOCHS
+config.trainer.amp_level = AMP_LEVEL
+config.trainer.precision = PRECISION
+config.model.optim.lr = LR
+
+# Instantiate the trainer and experiment manager
+trainer = pl.Trainer(**config.trainer)
+exp_manager(trainer, config.exp_manager)
+# Instantiate the model 
+model = nemo_nlp.models.TextClassificationModel(config.model, trainer=trainer)
+%%time
+# start model training and save result
+# The training takes about 2 minutes to run
+trainer.fit(model)
+model.save_to(config.model.nemo_path)
+
+trainer.test(model=model, verbose=False)
+print(config.model.infer_samples)
+model.classifytext(queries=config.model.infer_samples, batch_size=64, max_seq_length=128)
+my_queries = [
+    'Clustering of missense mutations in the ataxia-telangiectasia gene in a sporadic T-cell leukaemia',
+    'Myotonic dystrophy protein kinase is involved in the modulation of the Ca2+ homeostasis in skeletal muscle cells.',
+    'Constitutional RB1-gene mutations in patients with isolated unilateral retinoblastoma.',
+    'Hereditary deficiency of the fifth component of complement in man. I. Clinical, immunochemical, and family studies.'
+
+# TODO Run inference over the my_queries list
+# [0, 1, 2, 2] are ideal results
+model.classifytext(queries=my_queries, batch_size=16, max_seq_length=64)

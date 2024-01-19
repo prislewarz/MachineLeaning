@@ -1,0 +1,140 @@
+!tree nemo/examples/nlp -L 1
+NER3_DATA_DIR = '/dli/task/data/NCBI_ner-3'
+!ls -lh $NER3_DATA_DIR
+
+# Take a look at the data
+print("*****\ntext_test.txt sample\n*****")
+!head -n 3 $NER3_DATA_DIR/text_test.txt
+print("\n*****\nlabels_test.txt sample\n*****")
+!head -n 3 $NER3_DATA_DIR/labels_test.txt
+
+!head $NER3_DATA_DIR/label_ids.csv
+TC_DIR = "/dli/task/nemo/examples/nlp/token_classification"
+!tree $TC_DIR
+
+from omegaconf import OmegaConf
+
+CONFIG_DIR = "/dli/task/nemo/examples/nlp/token_classification/conf"
+CONFIG_FILE = "token_classification_config.yaml"
+
+config = OmegaConf.load(CONFIG_DIR + "/" + CONFIG_FILE)
+
+# print the model section
+print(OmegaConf.to_yaml(config.model))
+
+# complete list of supported BERT-like models
+from nemo.collections import nlp as nemo_nlp
+nemo_nlp.modules.get_pretrained_lm_models_list()
+# print the trainer section
+print(OmegaConf.to_yaml(config.trainer))
+# print the experiment manager section
+print(OmegaConf.to_yaml(config.exp_manager))
+
+%%time
+# The training takes about 2 minutes to run
+   
+TOKEN_DIR = "/dli/task/nemo/examples/nlp/token_classification"
+
+# set the values we want to override
+PRETRAINED_MODEL_NAME = 'bert-base-cased'
+DATA_DIR = '/dli/task/data/NCBI_ner-3'
+MAX_SEQ_LENGTH = 64
+BATCH_SIZE = 32
+AMP_LEVEL = 'O1'
+MAX_EPOCHS = 3
+
+# Override the config values in the command line
+# FIXME
+
+# Override the config values in the command line
+!python $TOKEN_DIR/token_classification_train.py \
+        model.language_model.pretrained_model_name=$PRETRAINED_MODEL_NAME \
+        model.dataset.data_dir=$DATA_DIR \
+        model.dataset.max_seq_length=$MAX_SEQ_LENGTH \
+        model.train_ds.batch_size=$BATCH_SIZE \
+        model.validation_ds.batch_size=$BATCH_SIZE \
+        model.test_ds.batch_size=$BATCH_SIZE \
+        trainer.amp_level=$AMP_LEVEL \
+        trainer.max_epochs=$MAX_EPOCHS
+        
+%%time
+# The training takes about 5-6 minutes to run
+   
+TOKEN_DIR = "/dli/task/nemo/examples/nlp/token_classification"
+
+# set the values we want to override
+PRETRAINED_MODEL_NAME = 'biomegatron-bert-345m-cased'
+DATA_DIR = '/dli/task/data/NCBI_ner-3'
+MAX_SEQ_LENGTH = 64
+BATCH_SIZE = 32
+AMP_LEVEL = 'O1'
+MAX_EPOCHS = 3
+
+# Override the config values in the command line
+!python $TOKEN_DIR/token_classification_train.py \
+        model.language_model.pretrained_model_name=$PRETRAINED_MODEL_NAME \
+        model.dataset.data_dir=$DATA_DIR \
+        model.dataset.max_seq_length=$MAX_SEQ_LENGTH \
+        model.train_ds.batch_size=$BATCH_SIZE \
+        model.validation_ds.batch_size=$BATCH_SIZE \
+        model.test_ds.batch_size=$BATCH_SIZE \
+        trainer.amp_level=$AMP_LEVEL \
+        trainer.max_epochs=$MAX_EPOCHS
+        
+%%js
+const href = window.location.hostname +'/tensorboard/';
+let a = document.createElement('a');
+let link = document.createTextNode('Open Tensorboard!');
+a.appendChild(link);
+a.href = "http://" + href;
+a.style.color = "navy"
+a.target = "_blank"
+element.append(a);
+
+# Restart the kernel
+import IPython
+app = IPython.Application.instance()
+app.kernel.do_shutdown(True)
+
+import glob
+
+nemo_model_paths = glob.glob('nemo_experiments/token_classification_model/*/checkpoints/*.nemo')
+
+# Sort newest first
+nemo_model_paths.sort(reverse=True)
+print("The latest model is \n{}".format(nemo_model_paths[0]))
+
+# Instantiate the model by restoring from the .nemo checkpoint
+from nemo.collections import nlp as nemo_nlp
+
+LATEST_MODEL = nemo_model_paths[0]
+model = nemo_nlp.models.TokenClassificationModel.restore_from(LATEST_MODEL)
+
+import os.path
+
+DATA_DIR = '/dli/task/data/NCBI_ner-3'
+OUTPUT_DIR = '/dli/task/nemo_experiments/token_classification_model/logs'
+model.evaluate_from_file(
+    text_file=os.path.join(DATA_DIR, 'text_test.txt'),
+    labels_file=os.path.join(DATA_DIR, 'labels_test.txt'),
+    output_dir=OUTPUT_DIR,
+    add_confusion_matrix=True,
+    normalize_confusion_matrix=True,
+    batch_size=1
+)
+
+queries = ["Clustering of missense mutations in the ataxia - telangiectasia gene in a sporadic T - cell leukaemia . ",
+    "Ataxia - telangiectasia ( A - T ) is a recessive multi - system disorder caused by mutations in the ATM gene at 11q22 - q23 ( ref . 3 ) . ",
+    "The risk of cancer , especially lymphoid neoplasias , is substantially elevated in A - T patients and has long been associated with chromosomal instability . ",
+    "By analysing tumour DNA from patients with sporadic T - cell prolymphocytic leukaemia ( T - PLL ) , a rare clonal malignancy with similarities to a mature T - cell leukaemia seen in A - T , we demonstrate a high frequency of ATM mutations in T - PLL . ",
+    "In marked contrast to the ATM mutation pattern in A - T , the most frequent nucleotide changes in this leukaemia were missense mutations . ",
+    "These clustered in the region corresponding to the kinase domain , which is highly conserved in ATM - related proteins in mouse , yeast and Drosophila . ",
+    "The resulting amino - acid substitutions are predicted to interfere with ATP binding or substrate recognition . ",
+    "Two of seventeen mutated T - PLL samples had a previously reported A - T allele . ",
+    "In contrast , no mutations were detected in the p53 gene , suggesting that this tumour suppressor is not frequently altered in this leukaemia . ",
+    "Occasional missense mutations in ATM were also found in tumour DNA from patients with B - cell non - Hodgkins lymphomas ( B - NHL ) and a B - NHL cell line . "
+          ]
+          
+ results = model.add_predictions(queries, output_file='predictions.txt')
+ !cat predictions.txt
+ 

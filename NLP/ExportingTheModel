@@ -1,0 +1,151 @@
+!ls data/*.pt
+
+# Set the server hostname and check it - you should get a message that "Triton Server is ready!"
+tritonServerHostName = "triton"
+!./utilities/wait_for_triton_server.sh {tritonServerHostName}
+
+```python
+<model-repository-path>/
+  <model-name>/
+    [config.pbtxt]
+    [<output-labels-file> ...]
+    <version>/
+      <model-definition-file>
+    <version>/
+      <model-definition-file>
+    ...
+  <model-name>/
+    [config.pbtxt]
+    [<output-labels-file> ...]
+    <version>/
+      <model-definition-file>
+    <version>/
+      <model-definition-file>
+    ...
+  ...
+```
+
+modelName = "bertQA-torchscript"
+
+!python ./deployer/deployer.py \
+    --ts-script \
+    --save-dir ./candidatemodels \
+    --triton-model-name {modelName} \
+    --triton-model-version 1 \
+    --triton-max-batch-size 8 \
+    --triton-dyn-batching-delay 0 \
+    --triton-engine-count 1 \
+    -- --checkpoint "/dli/task/data/bert_qa.pt" \
+    --config_file ./bert_config.json \
+    --vocab_file ./vocab \
+    --predict_file ./squad/v1.1/dev-v1.1.json \
+    --do_lower_case \
+    --batch_size=8 
+    
+!ls -al ./candidatemodels/bertQA-torchscript/
+!ls -al ./candidatemodels/bertQA-torchscript/1
+!cat ./candidatemodels/bertQA-torchscript/config.pbtxt
+!mv ./candidatemodels/bertQA-torchscript model_repository/
+
+modelVersion="1"
+precision="fp32"
+batchSize="1"
+maxLatency="500"
+maxClientThreads="10"
+maxConcurrency="2"
+dockerBridge="host"
+resultsFolderName="1"
+profilingData="utilities/profiling_data_int64"
+
+!./utilities/run_perf_client_local.sh \
+                    {modelName} \
+                    {modelVersion} \
+                    {precision} \
+                    {batchSize} \
+                    {maxLatency} \
+                    {maxClientThreads} \
+                    {maxConcurrency} \
+                    {tritonServerHostName} \
+                    {dockerBridge} \
+                    {resultsFolderName} \
+                    {profilingData}
+                    
+modelName = "bertQA-onnx"
+exportFormat = "onnx"
+
+!python ./deployer/deployer.py \
+    --{exportFormat} \
+    --save-dir ./candidatemodels \
+    --triton-model-name {modelName} \
+    --triton-model-version 1 \
+    --triton-max-batch-size 8 \
+    --triton-dyn-batching-delay 0 \
+    --triton-engine-count 1 \
+    -- --checkpoint ./data/bert_qa.pt \
+    --config_file ./bert_config.json \
+    --vocab_file ./vocab \
+    --predict_file ./squad/v1.1/dev-v1.1.json \
+    --do_lower_case \
+    --batch_size=8
+    
+!ls -al ./candidatemodels/bertQA-onnx/
+!ls -al ./candidatemodels/bertQA-onnx/1
+
+modelName = "bertQA-onnx"
+maxConcurrency = "10"
+batchSize = "8"
+print("Running: "+modelName)
+!bash ./utilities/run_perf_client_local.sh \
+                    {modelName} \
+                    {modelVersion} \
+                    {precision} \
+                    {batchSize} \
+                    {maxLatency} \
+                    {maxClientThreads} \
+                    {maxConcurrency} \
+                    {tritonServerHostName} \
+                    {dockerBridge} \
+                    {resultsFolderName} \
+                    {profilingData}
+                    
+modelName = "bertQA-onnx-trt-fp16"
+exportFormat = "onnx"
+
+!python ./deployer/deployer.py \
+    --{exportFormat} \
+    --save-dir ./candidatemodels \
+    --triton-model-name {modelName} \
+    --triton-model-version 1 \
+    --triton-max-batch-size 8 \
+    --triton-dyn-batching-delay 0 \
+    --triton-engine-count 1 \
+    -- --checkpoint ./data/bert_qa.pt \
+    --config_file ./bert_config.json \
+    --vocab_file ./vocab \
+    --predict_file ./squad/v1.1/dev-v1.1.json \
+    --do_lower_case \
+    --batch_size=8
+    
+!ls -al ./candidatemodels/bertQA-onnx-trt-fp16/
+!mv ./candidatemodels/bertQA-onnx-trt-fp16 model_repository/
+
+modelName = "bertQA-onnx-trt-fp16"
+maxConcurrency= "10"
+batchSize="8"
+print("Running: " + modelName)
+!bash ./utilities/run_perf_client_local.sh \
+                    {modelName} \
+                    {modelVersion} \
+                    {precision} \
+                    {batchSize} \
+                    {maxLatency} \
+                    {maxClientThreads} \
+                    {maxConcurrency} \
+                    {tritonServerHostName} \
+                    {dockerBridge} \
+                    {resultsFolderName} \
+                    {profilingData}
+                    
+                    
+
+
